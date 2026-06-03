@@ -499,6 +499,7 @@
     function handleClickPage(e) {
       if (e.target.closest('#highlightMenu')) return;
       if (window.getSelection().toString().length > 0) return;
+      if (bookmarkFired) { bookmarkFired = false; return; }
 
       const reader = document.getElementById('reader');
       const rect = reader.getBoundingClientRect();
@@ -754,8 +755,13 @@
     }
 
     let bookmarkTimer = null;
+    let bookmarkFired = false;
     function startBookmarkTimer(paraIndex) {
-      bookmarkTimer = setTimeout(() => toggleBookmark(paraIndex), 500);
+      bookmarkFired = false;
+      bookmarkTimer = setTimeout(() => {
+        bookmarkFired = true;
+        toggleBookmark(paraIndex);
+      }, 500);
     }
     function clearBookmarkTimer() {
       clearTimeout(bookmarkTimer);
