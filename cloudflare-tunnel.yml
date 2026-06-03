@@ -1,7 +1,0 @@
-tunnel: <your-tunnel-id>
-credentials-file: /Users/your_username/.cloudflared/<tunnel-id>.json
-
-ingress:
-  - hostname: kavita.yourdomain.com
-    service: http://localhost:5000
-  - service: http_status:404

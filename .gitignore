@@ -2,3 +2,13 @@ node_modules
 dist
 .env
 *.log
+kavita-config/
+docker-compose.yml
+cloudflare-tunnel.yml
+setup.sh
+src/kavita.ts
+src/demo.ts
+src/test-api.ts
+src/epub-parser.ts
+src/index.ts
+test-book.mjs
