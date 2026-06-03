@@ -31,7 +31,7 @@ const pipeline = new ReadingPipeline(
 
 const obsidian = new ObsidianSync(process.env.OBSIDIAN_VAULT_PATH!);
 
-const booksDir = '/tmp/reading-books';
+const booksDir = process.env.BOOKS_DIR || path.join(process.cwd(), 'data', 'books');
 await fs.mkdir(booksDir, { recursive: true });
 
 // 获取所有已上传的书籍
