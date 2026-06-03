@@ -1,0 +1,1277 @@
+diff --git a/.env.example b/.env.example
+index 5ccd109..825505c 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,18 +1,11 @@
+-# Books Directory
+-BOOKS_DIR=
++# Database
++DATABASE_URL=data/app.db
+ 
+-# App Password
+-APP_PASSWORD=
++# JWT Secret (generate a random string)
++JWT_SECRET=change-this-to-random-secret-key
+ 
+-# API Keys
+-CHEAP_API_KEY=
+-CHEAP_BASE_URL=https://api.openai.com/v1
+-MAIN_API_KEY=
+-MAIN_BASE_URL=https://api.openai.com/v1
++# Optional: Invite code for registration
++INVITE_CODE=
+ 
+-# Models
+-CHEAP_MODEL=gpt-3.5-turbo
+-MAIN_MODEL=gpt-4
+-
+-# Obsidian
+-OBSIDIAN_VAULT_PATH=/Users/your_username/Documents/Obsidian/YourVault
++# Server
++PORT=3000
+diff --git a/package-lock.json b/package-lock.json
+index 8adaad5..3be0635 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -11,14 +11,18 @@
+         "@types/multer": "^2.1.0",
+         "adm-zip": "^0.5.17",
+         "axios": "^1.7.2",
++        "bcrypt": "^5.1.1",
+         "cheerio": "^1.2.0",
+         "cors": "^2.8.6",
+         "dotenv": "^16.4.5",
+         "epub-gen": "^0.1.0",
+         "epub2": "^3.0.2",
+         "express": "^5.2.1",
++        "express-rate-limit": "^7.2.0",
++        "jsonwebtoken": "^9.0.2",
+         "mobi": "^0.0.1",
+-        "multer": "^2.1.1"
++        "multer": "^2.1.1",
++        "sql.js": "^1.12.0"
+       },
+       "devDependencies": {
+         "@types/node": "^20.12.7",
+@@ -468,6 +472,42 @@
+         "node": ">=18"
+       }
+     },
++    "node_modules/@mapbox/node-pre-gyp": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/@mapbox/node-pre-gyp/-/node-pre-gyp-1.0.11.tgz",
++      "integrity": "sha512-Yhlar6v9WQgUp/He7BdgzOz8lqMQ8sU+jkCq7Wx8Myc5YFJLbEe7lgui/V7G1qB1DJykHSGwreceSaD60Y0PUQ==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "detect-libc": "^2.0.0",
++        "https-proxy-agent": "^5.0.0",
++        "make-dir": "^3.1.0",
++        "node-fetch": "^2.6.7",
++        "nopt": "^5.0.0",
++        "npmlog": "^5.0.1",
++        "rimraf": "^3.0.2",
++        "semver": "^7.3.5",
++        "tar": "^6.1.11"
++      },
++      "bin": {
++        "node-pre-gyp": "bin/node-pre-gyp"
++      }
++    },
++    "node_modules/@mapbox/node-pre-gyp/node_modules/rimraf": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/rimraf/-/rimraf-3.0.2.tgz",
++      "integrity": "sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==",
++      "deprecated": "Rimraf versions prior to v4 are no longer supported",
++      "license": "ISC",
++      "dependencies": {
++        "glob": "^7.1.3"
++      },
++      "bin": {
++        "rimraf": "bin.js"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
+     "node_modules/@types/body-parser": {
+       "version": "1.19.6",
+       "resolved": "https://registry.npmjs.org/@types/body-parser/-/body-parser-1.19.6.tgz",
+@@ -565,6 +605,12 @@
+         "@types/node": "*"
+       }
+     },
++    "node_modules/abbrev": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/abbrev/-/abbrev-1.1.1.tgz",
++      "integrity": "sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==",
++      "license": "ISC"
++    },
+     "node_modules/accepts": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/accepts/-/accepts-2.0.0.tgz",
+@@ -624,12 +670,27 @@
+         "node": ">= 6.0.0"
+       }
+     },
++    "node_modules/ansi-regex": {
++      "version": "5.0.1",
++      "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-5.0.1.tgz",
++      "integrity": "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/append-field": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/append-field/-/append-field-1.0.0.tgz",
+       "integrity": "sha512-klpgFSWLW1ZEs8svjfb7g4qWY0YS5imI82dTg+QahUvJ8YqAY0P10Uk8tTyh9ZGuYEZEMaeJYCF5BFuX552hsw==",
+       "license": "MIT"
+     },
++    "node_modules/aproba": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/aproba/-/aproba-2.1.0.tgz",
++      "integrity": "sha512-tLIEcj5GuR2RSTnxNKdkK0dJ/GrC7P38sUkiDmDuHfsHmbagTFAxDVIBltoklXEVIQ/f14IL8IMJ5pn9Hez1Ew==",
++      "license": "ISC"
++    },
+     "node_modules/archiver": {
+       "version": "3.1.1",
+       "resolved": "https://registry.npmjs.org/archiver/-/archiver-3.1.1.tgz",
+@@ -699,6 +760,20 @@
+         "safe-buffer": "~5.1.0"
+       }
+     },
++    "node_modules/are-we-there-yet": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/are-we-there-yet/-/are-we-there-yet-2.0.0.tgz",
++      "integrity": "sha512-Ci/qENmwHnsYo9xKIcUJN5LeDKdJ6R1Z1j9V/J5wyq8nh/mYPEpIKJbBZXtZjG04HiK7zV/p6Vs9952MrMeUIw==",
++      "deprecated": "This package is no longer supported.",
++      "license": "ISC",
++      "dependencies": {
++        "delegates": "^1.0.0",
++        "readable-stream": "^3.6.0"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
+     "node_modules/array-hyper-unique": {
+       "version": "2.1.8",
+       "resolved": "https://registry.npmjs.org/array-hyper-unique/-/array-hyper-unique-2.1.8.tgz",
+@@ -762,6 +837,20 @@
+       ],
+       "license": "MIT"
+     },
++    "node_modules/bcrypt": {
++      "version": "5.1.1",
++      "resolved": "https://registry.npmjs.org/bcrypt/-/bcrypt-5.1.1.tgz",
++      "integrity": "sha512-AGBHOG5hPYZ5Xl9KXzU5iKq9516yEmvCKDg3ecP5kX2aB6UqTeXZxk2ELnDgDm6BQSMlLt9rDB4LoSMx0rYwww==",
++      "hasInstallScript": true,
++      "license": "MIT",
++      "dependencies": {
++        "@mapbox/node-pre-gyp": "^1.0.11",
++        "node-addon-api": "^5.0.0"
++      },
++      "engines": {
++        "node": ">= 10.0.0"
++      }
++    },
+     "node_modules/bl": {
+       "version": "4.1.0",
+       "resolved": "https://registry.npmjs.org/bl/-/bl-4.1.0.tgz",
+@@ -868,6 +957,12 @@
+         "node": "*"
+       }
+     },
++    "node_modules/buffer-equal-constant-time": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/buffer-equal-constant-time/-/buffer-equal-constant-time-1.0.1.tgz",
++      "integrity": "sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==",
++      "license": "BSD-3-Clause"
++    },
+     "node_modules/buffer-from": {
+       "version": "1.1.2",
+       "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
+@@ -965,6 +1060,24 @@
+         "url": "https://github.com/sponsors/fb55"
+       }
+     },
++    "node_modules/chownr": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/chownr/-/chownr-2.0.0.tgz",
++      "integrity": "sha512-bIomtDF5KGpdogkLd9VspvFzk9KfpyyGlS8YFVZl7TGPBHL5snIOnxeshwVgPteQ9b4Eydl+pVbIyE1DcvCWgQ==",
++      "license": "ISC",
++      "engines": {
++        "node": ">=10"
++      }
++    },
++    "node_modules/color-support": {
++      "version": "1.1.3",
++      "resolved": "https://registry.npmjs.org/color-support/-/color-support-1.1.3.tgz",
++      "integrity": "sha512-qiBjkpbMLO/HL68y+lh4q0/O1MZFj2RX6X/KmMa3+gJD3z+WwI1ZzDHysvqHGS3mP6mznPckpXmw1nI9cJjyRg==",
++      "license": "ISC",
++      "bin": {
++        "color-support": "bin.js"
++      }
++    },
+     "node_modules/combined-stream": {
+       "version": "1.0.8",
+       "resolved": "https://registry.npmjs.org/combined-stream/-/combined-stream-1.0.8.tgz",
+@@ -1052,6 +1165,12 @@
+         "typedarray": "^0.0.6"
+       }
+     },
++    "node_modules/console-control-strings": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/console-control-strings/-/console-control-strings-1.1.0.tgz",
++      "integrity": "sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==",
++      "license": "ISC"
++    },
+     "node_modules/content-disposition": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/content-disposition/-/content-disposition-1.1.0.tgz",
+@@ -1218,6 +1337,12 @@
+         "node": ">=0.4.0"
+       }
+     },
++    "node_modules/delegates": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/delegates/-/delegates-1.0.0.tgz",
++      "integrity": "sha512-bd2L678uiWATM6m5Z1VzNCErI3jiGzt6HGY8OVICs40JQq/HALfbyNJmp0UDakEY4pMMaN0Ly5om/B1VI/+xfQ==",
++      "license": "MIT"
++    },
+     "node_modules/depd": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/depd/-/depd-2.0.0.tgz",
+@@ -1227,6 +1352,15 @@
+         "node": ">= 0.8"
+       }
+     },
++    "node_modules/detect-libc": {
++      "version": "2.1.2",
++      "resolved": "https://registry.npmjs.org/detect-libc/-/detect-libc-2.1.2.tgz",
++      "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==",
++      "license": "Apache-2.0",
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/diacritics": {
+       "version": "1.3.0",
+       "resolved": "https://registry.npmjs.org/diacritics/-/diacritics-1.3.0.tgz",
+@@ -1314,6 +1448,15 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/ecdsa-sig-formatter": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/ecdsa-sig-formatter/-/ecdsa-sig-formatter-1.0.11.tgz",
++      "integrity": "sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/ee-first": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/ee-first/-/ee-first-1.1.1.tgz",
+@@ -1330,6 +1473,12 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/emoji-regex": {
++      "version": "8.0.0",
++      "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-8.0.0.tgz",
++      "integrity": "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==",
++      "license": "MIT"
++    },
+     "node_modules/encodeurl": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/encodeurl/-/encodeurl-2.0.0.tgz",
+@@ -1663,6 +1812,21 @@
+         "url": "https://opencollective.com/express"
+       }
+     },
++    "node_modules/express-rate-limit": {
++      "version": "7.5.1",
++      "resolved": "https://registry.npmjs.org/express-rate-limit/-/express-rate-limit-7.5.1.tgz",
++      "integrity": "sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 16"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/express-rate-limit"
++      },
++      "peerDependencies": {
++        "express": ">= 4.11"
++      }
++    },
+     "node_modules/express/node_modules/mime-db": {
+       "version": "1.54.0",
+       "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.54.0.tgz",
+@@ -1799,6 +1963,30 @@
+         "node": ">=6 <7 || >=8"
+       }
+     },
++    "node_modules/fs-minipass": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/fs-minipass/-/fs-minipass-2.1.0.tgz",
++      "integrity": "sha512-V/JgOLFCS+R6Vcq0slCuaeWEdNC3ouDlJMNIsacH2VtALiu9mV4LPrHc5cDl8k5aw6J8jwgWWpiTo5RYhmIzvg==",
++      "license": "ISC",
++      "dependencies": {
++        "minipass": "^3.0.0"
++      },
++      "engines": {
++        "node": ">= 8"
++      }
++    },
++    "node_modules/fs-minipass/node_modules/minipass": {
++      "version": "3.3.6",
++      "resolved": "https://registry.npmjs.org/minipass/-/minipass-3.3.6.tgz",
++      "integrity": "sha512-DxiNidxSEK+tHG6zOIklvNOwm3hvCrbUrdtzY74U6HKTJxvIDfOUL5W5P2Ghd3DTkhhKPYGqeNUIh5qcM4YBfw==",
++      "license": "ISC",
++      "dependencies": {
++        "yallist": "^4.0.0"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/fs.realpath": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/fs.realpath/-/fs.realpath-1.0.0.tgz",
+@@ -1829,6 +2017,27 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/gauge": {
++      "version": "3.0.2",
++      "resolved": "https://registry.npmjs.org/gauge/-/gauge-3.0.2.tgz",
++      "integrity": "sha512-+5J6MS/5XksCuXq++uFRsnUd7Ovu1XenbeuIuNRJxYWjgQbPuFhT14lAvsWfqfAmnwluf1OwMjz39HjfLPci0Q==",
++      "deprecated": "This package is no longer supported.",
++      "license": "ISC",
++      "dependencies": {
++        "aproba": "^1.0.3 || ^2.0.0",
++        "color-support": "^1.1.2",
++        "console-control-strings": "^1.0.0",
++        "has-unicode": "^2.0.1",
++        "object-assign": "^4.1.1",
++        "signal-exit": "^3.0.0",
++        "string-width": "^4.2.3",
++        "strip-ansi": "^6.0.1",
++        "wide-align": "^1.1.2"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
+     "node_modules/get-intrinsic": {
+       "version": "1.3.0",
+       "resolved": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.3.0.tgz",
+@@ -1932,6 +2141,12 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/has-unicode": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/has-unicode/-/has-unicode-2.0.1.tgz",
++      "integrity": "sha512-8Rf9Y83NBReMnx0gFzA8JImQACstCYWUplepDa9xprwwtmgEZUF0h/i5xSA625zB/I37EtrswSST6OXxwaaIJQ==",
++      "license": "ISC"
++    },
+     "node_modules/hasown": {
+       "version": "2.0.4",
+       "resolved": "https://registry.npmjs.org/hasown/-/hasown-2.0.4.tgz",
+@@ -2066,6 +2281,15 @@
+         "node": ">= 0.10"
+       }
+     },
++    "node_modules/is-fullwidth-code-point": {
++      "version": "3.0.0",
++      "resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz",
++      "integrity": "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/is-promise": {
+       "version": "4.0.0",
+       "resolved": "https://registry.npmjs.org/is-promise/-/is-promise-4.0.0.tgz",
+@@ -2087,6 +2311,49 @@
+         "graceful-fs": "^4.1.6"
+       }
+     },
++    "node_modules/jsonwebtoken": {
++      "version": "9.0.3",
++      "resolved": "https://registry.npmjs.org/jsonwebtoken/-/jsonwebtoken-9.0.3.tgz",
++      "integrity": "sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==",
++      "license": "MIT",
++      "dependencies": {
++        "jws": "^4.0.1",
++        "lodash.includes": "^4.3.0",
++        "lodash.isboolean": "^3.0.3",
++        "lodash.isinteger": "^4.0.4",
++        "lodash.isnumber": "^3.0.3",
++        "lodash.isplainobject": "^4.0.6",
++        "lodash.isstring": "^4.0.1",
++        "lodash.once": "^4.0.0",
++        "ms": "^2.1.1",
++        "semver": "^7.5.4"
++      },
++      "engines": {
++        "node": ">=12",
++        "npm": ">=6"
++      }
++    },
++    "node_modules/jwa": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/jwa/-/jwa-2.0.1.tgz",
++      "integrity": "sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg==",
++      "license": "MIT",
++      "dependencies": {
++        "buffer-equal-constant-time": "^1.0.1",
++        "ecdsa-sig-formatter": "1.0.11",
++        "safe-buffer": "^5.0.1"
++      }
++    },
++    "node_modules/jws": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/jws/-/jws-4.0.1.tgz",
++      "integrity": "sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==",
++      "license": "MIT",
++      "dependencies": {
++        "jwa": "^2.0.1",
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/lazystream": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/lazystream/-/lazystream-1.0.1.tgz",
+@@ -2177,12 +2444,42 @@
+       "integrity": "sha512-aEXTF4d+m05rVOAUG3z4vZZ4xVexLKZGF0lIxuHZ1Hplpk/3B6Z1+/ICICYRLm7c41Z2xiejbkCkJoTlypoXhQ==",
+       "license": "MIT"
+     },
++    "node_modules/lodash.includes": {
++      "version": "4.3.0",
++      "resolved": "https://registry.npmjs.org/lodash.includes/-/lodash.includes-4.3.0.tgz",
++      "integrity": "sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isboolean": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz",
++      "integrity": "sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isinteger": {
++      "version": "4.0.4",
++      "resolved": "https://registry.npmjs.org/lodash.isinteger/-/lodash.isinteger-4.0.4.tgz",
++      "integrity": "sha512-DBwtEWN2caHQ9/imiNeEA5ys1JoRtRfY3d7V9wkqtbycnAmTvRRmbHKDV4a0EYc678/dia0jrte4tjYwVBaZUA==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isnumber": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/lodash.isnumber/-/lodash.isnumber-3.0.3.tgz",
++      "integrity": "sha512-QYqzpfwO3/CWf3XP+Z+tkQsfaLL/EnUlXWVkIk5FUPc4sBdTehEqZONuyRt2P67PXAk+NXmTBcc97zw9t1FQrw==",
++      "license": "MIT"
++    },
+     "node_modules/lodash.isplainobject": {
+       "version": "4.0.6",
+       "resolved": "https://registry.npmjs.org/lodash.isplainobject/-/lodash.isplainobject-4.0.6.tgz",
+       "integrity": "sha512-oSXzaWypCMHkPC3NvBEaPHf0KsA5mvPrOPgQWDsbg8n7orZ290M0BmC/jgRZ4vcJ6DTAhjrsSYgdsW/F+MFOBA==",
+       "license": "MIT"
+     },
++    "node_modules/lodash.isstring": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/lodash.isstring/-/lodash.isstring-4.0.1.tgz",
++      "integrity": "sha512-0wJxfxH1wgO3GrbuP+dTTk7op+6L41QCXbGINEmD+ny/G/eCqGzxyCsh7159S+mgDDcoarnBw6PC1PS5+wUGgw==",
++      "license": "MIT"
++    },
+     "node_modules/lodash.map": {
+       "version": "4.6.0",
+       "resolved": "https://registry.npmjs.org/lodash.map/-/lodash.map-4.6.0.tgz",
+@@ -2195,6 +2492,12 @@
+       "integrity": "sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==",
+       "license": "MIT"
+     },
++    "node_modules/lodash.once": {
++      "version": "4.1.1",
++      "resolved": "https://registry.npmjs.org/lodash.once/-/lodash.once-4.1.1.tgz",
++      "integrity": "sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==",
++      "license": "MIT"
++    },
+     "node_modules/lodash.pick": {
+       "version": "4.4.0",
+       "resolved": "https://registry.npmjs.org/lodash.pick/-/lodash.pick-4.4.0.tgz",
+@@ -2226,6 +2529,30 @@
+       "integrity": "sha512-c4pB2CdGrGdjMKYLA+XiRDO7Y0PRQbm/Gzg8qMj+QH+pFVAoTp5sBpO0odL3FjoPCGjK96p6qsP+yQoiLoOBcw==",
+       "license": "MIT"
+     },
++    "node_modules/make-dir": {
++      "version": "3.1.0",
++      "resolved": "https://registry.npmjs.org/make-dir/-/make-dir-3.1.0.tgz",
++      "integrity": "sha512-g3FeP20LNwhALb/6Cz6Dd4F2ngze0jz7tbzrD2wAV+o9FeNHe4rL+yK2md0J/fiSf1sa1ADhXqi5+oVwOM/eGw==",
++      "license": "MIT",
++      "dependencies": {
++        "semver": "^6.0.0"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/sindresorhus"
++      }
++    },
++    "node_modules/make-dir/node_modules/semver": {
++      "version": "6.3.1",
++      "resolved": "https://registry.npmjs.org/semver/-/semver-6.3.1.tgz",
++      "integrity": "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==",
++      "license": "ISC",
++      "bin": {
++        "semver": "bin/semver.js"
++      }
++    },
+     "node_modules/math-intrinsics": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/math-intrinsics/-/math-intrinsics-1.1.0.tgz",
+@@ -2310,6 +2637,52 @@
+         "node": "*"
+       }
+     },
++    "node_modules/minipass": {
++      "version": "5.0.0",
++      "resolved": "https://registry.npmjs.org/minipass/-/minipass-5.0.0.tgz",
++      "integrity": "sha512-3FnjYuehv9k6ovOEbyOswadCDPX1piCfhV8ncmYtHOjuPwylVWsghTLo7rabjC3Rx5xD4HDx8Wm1xnMF7S5qFQ==",
++      "license": "ISC",
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/minizlib": {
++      "version": "2.1.2",
++      "resolved": "https://registry.npmjs.org/minizlib/-/minizlib-2.1.2.tgz",
++      "integrity": "sha512-bAxsR8BVfj60DWXHE3u30oHzfl4G7khkSuPW+qvpd7jFRHm7dLxOjUk1EHACJ/hxLY8phGJ0YhYHZo7jil7Qdg==",
++      "license": "MIT",
++      "dependencies": {
++        "minipass": "^3.0.0",
++        "yallist": "^4.0.0"
++      },
++      "engines": {
++        "node": ">= 8"
++      }
++    },
++    "node_modules/minizlib/node_modules/minipass": {
++      "version": "3.3.6",
++      "resolved": "https://registry.npmjs.org/minipass/-/minipass-3.3.6.tgz",
++      "integrity": "sha512-DxiNidxSEK+tHG6zOIklvNOwm3hvCrbUrdtzY74U6HKTJxvIDfOUL5W5P2Ghd3DTkhhKPYGqeNUIh5qcM4YBfw==",
++      "license": "ISC",
++      "dependencies": {
++        "yallist": "^4.0.0"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/mkdirp": {
++      "version": "1.0.4",
++      "resolved": "https://registry.npmjs.org/mkdirp/-/mkdirp-1.0.4.tgz",
++      "integrity": "sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==",
++      "license": "MIT",
++      "bin": {
++        "mkdirp": "bin/cmd.js"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
+     "node_modules/mobi": {
+       "version": "0.0.1",
+       "resolved": "https://registry.npmjs.org/mobi/-/mobi-0.0.1.tgz",
+@@ -2374,6 +2747,47 @@
+         "node": ">= 0.6"
+       }
+     },
++    "node_modules/node-addon-api": {
++      "version": "5.1.0",
++      "resolved": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-5.1.0.tgz",
++      "integrity": "sha512-eh0GgfEkpnoWDq+VY8OyvYhFEzBk6jIYbRKdIlyTiAXIVJ8PyBaKb0rp7oDtoddbdoHWhq8wwr+XZ81F1rpNdA==",
++      "license": "MIT"
++    },
++    "node_modules/node-fetch": {
++      "version": "2.7.0",
++      "resolved": "https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz",
++      "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
++      "license": "MIT",
++      "dependencies": {
++        "whatwg-url": "^5.0.0"
++      },
++      "engines": {
++        "node": "4.x || >=6.0.0"
++      },
++      "peerDependencies": {
++        "encoding": "^0.1.0"
++      },
++      "peerDependenciesMeta": {
++        "encoding": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/nopt": {
++      "version": "5.0.0",
++      "resolved": "https://registry.npmjs.org/nopt/-/nopt-5.0.0.tgz",
++      "integrity": "sha512-Tbj67rffqceeLpcRXrT7vKAN8CwfPeIBgM7E6iBkmKLV7bEMwpGgYLGv0jACUsECaa/vuxP0IjEont6umdMgtQ==",
++      "license": "ISC",
++      "dependencies": {
++        "abbrev": "1"
++      },
++      "bin": {
++        "nopt": "bin/nopt.js"
++      },
++      "engines": {
++        "node": ">=6"
++      }
++    },
+     "node_modules/normalize-path": {
+       "version": "3.0.0",
+       "resolved": "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz",
+@@ -2383,6 +2797,19 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/npmlog": {
++      "version": "5.0.1",
++      "resolved": "https://registry.npmjs.org/npmlog/-/npmlog-5.0.1.tgz",
++      "integrity": "sha512-AqZtDUWOMKs1G/8lwylVjrdYgqA4d9nu8hc+0gzRxlDb1I10+FHBGMXs6aiQHFdCUUlqH99MUMuLfzWDNDtfxw==",
++      "deprecated": "This package is no longer supported.",
++      "license": "ISC",
++      "dependencies": {
++        "are-we-there-yet": "^2.0.0",
++        "console-control-strings": "^1.1.0",
++        "gauge": "^3.0.0",
++        "set-blocking": "^2.0.0"
++      }
++    },
+     "node_modules/nth-check": {
+       "version": "2.1.1",
+       "resolved": "https://registry.npmjs.org/nth-check/-/nth-check-2.1.1.tgz",
+@@ -2691,6 +3118,18 @@
+         "node": ">=11.0.0"
+       }
+     },
++    "node_modules/semver": {
++      "version": "7.8.1",
++      "resolved": "https://registry.npmjs.org/semver/-/semver-7.8.1.tgz",
++      "integrity": "sha512-rkVq3IXh+4FDGch+KwzX3aV9W3kO54GyEgpvBzSyctDA6Xtd7RJQV1xmXbeQp5v7+VzLOfVqiutSE6GICgPFvg==",
++      "license": "ISC",
++      "bin": {
++        "semver": "bin/semver.js"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
+     "node_modules/send": {
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/send/-/send-1.2.1.tgz",
+@@ -2761,6 +3200,12 @@
+         "url": "https://opencollective.com/express"
+       }
+     },
++    "node_modules/set-blocking": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/set-blocking/-/set-blocking-2.0.0.tgz",
++      "integrity": "sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==",
++      "license": "ISC"
++    },
+     "node_modules/setprototypeof": {
+       "version": "1.2.0",
+       "resolved": "https://registry.npmjs.org/setprototypeof/-/setprototypeof-1.2.0.tgz",
+@@ -2839,6 +3284,18 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/signal-exit": {
++      "version": "3.0.7",
++      "resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-3.0.7.tgz",
++      "integrity": "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==",
++      "license": "ISC"
++    },
++    "node_modules/sql.js": {
++      "version": "1.14.1",
++      "resolved": "https://registry.npmjs.org/sql.js/-/sql.js-1.14.1.tgz",
++      "integrity": "sha512-gcj8zBWU5cFsi9WUP+4bFNXAyF1iRpA3LLyS/DP5xlrNzGmPIizUeBggKa8DbDwdqaKwUcTEnChtd2grWo/x/A==",
++      "license": "MIT"
++    },
+     "node_modules/statuses": {
+       "version": "2.0.2",
+       "resolved": "https://registry.npmjs.org/statuses/-/statuses-2.0.2.tgz",
+@@ -2865,6 +3322,32 @@
+         "safe-buffer": "~5.2.0"
+       }
+     },
++    "node_modules/string-width": {
++      "version": "4.2.3",
++      "resolved": "https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz",
++      "integrity": "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==",
++      "license": "MIT",
++      "dependencies": {
++        "emoji-regex": "^8.0.0",
++        "is-fullwidth-code-point": "^3.0.0",
++        "strip-ansi": "^6.0.1"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
++    "node_modules/strip-ansi": {
++      "version": "6.0.1",
++      "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.1.tgz",
++      "integrity": "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==",
++      "license": "MIT",
++      "dependencies": {
++        "ansi-regex": "^5.0.1"
++      },
++      "engines": {
++        "node": ">=8"
++      }
++    },
+     "node_modules/superagent": {
+       "version": "3.8.3",
+       "resolved": "https://registry.npmjs.org/superagent/-/superagent-3.8.3.tgz",
+@@ -2961,6 +3444,24 @@
+       "integrity": "sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==",
+       "license": "MIT"
+     },
++    "node_modules/tar": {
++      "version": "6.2.1",
++      "resolved": "https://registry.npmjs.org/tar/-/tar-6.2.1.tgz",
++      "integrity": "sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==",
++      "deprecated": "Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me",
++      "license": "ISC",
++      "dependencies": {
++        "chownr": "^2.0.0",
++        "fs-minipass": "^2.0.0",
++        "minipass": "^5.0.0",
++        "minizlib": "^2.1.1",
++        "mkdirp": "^1.0.3",
++        "yallist": "^4.0.0"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
+     "node_modules/tar-stream": {
+       "version": "2.2.0",
+       "resolved": "https://registry.npmjs.org/tar-stream/-/tar-stream-2.2.0.tgz",
+@@ -2986,6 +3487,12 @@
+         "node": ">=0.6"
+       }
+     },
++    "node_modules/tr46": {
++      "version": "0.0.3",
++      "resolved": "https://registry.npmjs.org/tr46/-/tr46-0.0.3.tgz",
++      "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
++      "license": "MIT"
++    },
+     "node_modules/ts-toolbelt": {
+       "version": "9.6.0",
+       "resolved": "https://registry.npmjs.org/ts-toolbelt/-/ts-toolbelt-9.6.0.tgz",
+@@ -3197,6 +3704,12 @@
+         "node": ">= 0.8"
+       }
+     },
++    "node_modules/webidl-conversions": {
++      "version": "3.0.1",
++      "resolved": "https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-3.0.1.tgz",
++      "integrity": "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==",
++      "license": "BSD-2-Clause"
++    },
+     "node_modules/whatwg-encoding": {
+       "version": "3.1.1",
+       "resolved": "https://registry.npmjs.org/whatwg-encoding/-/whatwg-encoding-3.1.1.tgz",
+@@ -3219,6 +3732,25 @@
+         "node": ">=18"
+       }
+     },
++    "node_modules/whatwg-url": {
++      "version": "5.0.0",
++      "resolved": "https://registry.npmjs.org/whatwg-url/-/whatwg-url-5.0.0.tgz",
++      "integrity": "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==",
++      "license": "MIT",
++      "dependencies": {
++        "tr46": "~0.0.3",
++        "webidl-conversions": "^3.0.0"
++      }
++    },
++    "node_modules/wide-align": {
++      "version": "1.1.5",
++      "resolved": "https://registry.npmjs.org/wide-align/-/wide-align-1.1.5.tgz",
++      "integrity": "sha512-eDMORYaPNZ4sQIuuYPDHdQvf4gyCF9rEEV/yPxGfwPkRodwEgiMUUXTx/dex+Me0wxx53S+NgUHaP7y3MGlDmg==",
++      "license": "ISC",
++      "dependencies": {
++        "string-width": "^1.0.2 || 2 || 3 || 4"
++      }
++    },
+     "node_modules/wrappy": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/wrappy/-/wrappy-1.0.2.tgz",
+@@ -3247,6 +3779,12 @@
+         "node": ">=4.0"
+       }
+     },
++    "node_modules/yallist": {
++      "version": "4.0.0",
++      "resolved": "https://registry.npmjs.org/yallist/-/yallist-4.0.0.tgz",
++      "integrity": "sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==",
++      "license": "ISC"
++    },
+     "node_modules/zip-stream": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmjs.org/zip-stream/-/zip-stream-2.1.3.tgz",
+diff --git a/package.json b/package.json
+index adbec69..a9d48a9 100644
+--- a/package.json
++++ b/package.json
+@@ -11,14 +11,18 @@
+     "@types/multer": "^2.1.0",
+     "adm-zip": "^0.5.17",
+     "axios": "^1.7.2",
++    "bcrypt": "^5.1.1",
+     "cheerio": "^1.2.0",
+     "cors": "^2.8.6",
+     "dotenv": "^16.4.5",
+     "epub-gen": "^0.1.0",
+     "epub2": "^3.0.2",
+     "express": "^5.2.1",
++    "express-rate-limit": "^7.2.0",
++    "jsonwebtoken": "^9.0.2",
+     "mobi": "^0.0.1",
+-    "multer": "^2.1.1"
++    "multer": "^2.1.1",
++    "sql.js": "^1.12.0"
+   },
+   "devDependencies": {
+     "@types/node": "^20.12.7",
+diff --git a/public/index.html b/public/index.html
+index 1727495..071b4e8 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -361,21 +361,40 @@
+   <div id="settingsDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+     <div style="background:var(--paper);padding:24px;border-radius:8px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;">
+       <h3 style="margin-bottom:16px;color:var(--ink);">API 设置</h3>
++
++      <h4 style="margin:16px 0 12px 0;color:var(--ink);font-size:14px;font-weight:600;">快速阅读模型 (Cheap)</h4>
+       <div style="margin-bottom:12px;">
+         <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">API Key</label>
+-        <input id="apiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
++        <input id="cheapApiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+       </div>
+       <div style="margin-bottom:12px;">
+         <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Base URL</label>
+-        <input id="apiBase" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
++        <input id="cheapBaseUrl" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+       </div>
+       <div style="margin-bottom:12px;">
+         <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Model</label>
+-        <input id="apiModel" type="text" placeholder="gpt-3.5-turbo" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
++        <input id="cheapModel" type="text" placeholder="gpt-3.5-turbo" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
++      </div>
++      <div id="cheapTestResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
++      <button class="menu-btn" onclick="testApi('cheap')" style="margin-bottom:16px;">测试连接</button>
++
++      <h4 style="margin:24px 0 12px 0;color:var(--ink);font-size:14px;font-weight:600;">深度评论模型 (Main)</h4>
++      <div style="margin-bottom:12px;">
++        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">API Key</label>
++        <input id="mainApiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
++      </div>
++      <div style="margin-bottom:12px;">
++        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Base URL</label>
++        <input id="mainBaseUrl" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+       </div>
+-      <div id="testResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
++      <div style="margin-bottom:12px;">
++        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Model</label>
++        <input id="mainModel" type="text" placeholder="gpt-4" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
++      </div>
++      <div id="mainTestResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
++      <button class="menu-btn" onclick="testApi('main')" style="margin-bottom:16px;">测试连接</button>
++
+       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:nowrap;">
+-        <button class="menu-btn" onclick="testApi()" style="white-space:nowrap;margin-right:auto;">测试连接</button>
+         <button class="menu-btn" onclick="closeSettings()" style="white-space:nowrap;">取消</button>
+         <button class="save-btn" onclick="saveSettings()" style="white-space:nowrap;">保存</button>
+       </div>
+@@ -463,7 +482,15 @@
+     let bookmarks = {};
+     let allNotes = {};
+     let dialogResolve = null;
+-    let userApiConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
++    let stored = JSON.parse(localStorage.getItem('apiConfig') || '{}');
++    if (stored.apiKey && !stored.cheap && !stored.main) {
++      stored = {
++        cheap: { apiKey: stored.apiKey, baseUrl: stored.baseUrl, model: stored.model },
++        main: { apiKey: stored.apiKey, baseUrl: stored.baseUrl, model: stored.model }
++      };
++      localStorage.setItem('apiConfig', JSON.stringify(stored));
++    }
++    let userApiConfig = stored;
+     let readingSettings = JSON.parse(localStorage.getItem('readingSettings') || '{"pageMode":"scroll","fontFamily":"\'Noto Serif SC\', \'Merriweather\', serif"}');
+ 
+     function applyReadingSettings() {
+@@ -551,9 +578,12 @@
+     }
+ 
+     function openSettings() {
+-      document.getElementById('apiKey').value = userApiConfig.apiKey || '';
+-      document.getElementById('apiBase').value = userApiConfig.baseUrl || '';
+-      document.getElementById('apiModel').value = userApiConfig.model || '';
++      document.getElementById('cheapApiKey').value = userApiConfig.cheap?.apiKey || '';
++      document.getElementById('cheapBaseUrl').value = userApiConfig.cheap?.baseUrl || '';
++      document.getElementById('cheapModel').value = userApiConfig.cheap?.model || '';
++      document.getElementById('mainApiKey').value = userApiConfig.main?.apiKey || '';
++      document.getElementById('mainBaseUrl').value = userApiConfig.main?.baseUrl || '';
++      document.getElementById('mainModel').value = userApiConfig.main?.model || '';
+       document.getElementById('settingsDialog').style.display = 'flex';
+     }
+ 
+@@ -563,26 +593,33 @@
+ 
+     function saveSettings() {
+       userApiConfig = {
+-        apiKey: document.getElementById('apiKey').value,
+-        baseUrl: document.getElementById('apiBase').value,
+-        model: document.getElementById('apiModel').value
++        cheap: {
++          apiKey: document.getElementById('cheapApiKey').value,
++          baseUrl: document.getElementById('cheapBaseUrl').value,
++          model: document.getElementById('cheapModel').value
++        },
++        main: {
++          apiKey: document.getElementById('mainApiKey').value,
++          baseUrl: document.getElementById('mainBaseUrl').value,
++          model: document.getElementById('mainModel').value
++        }
+       };
+       localStorage.setItem('apiConfig', JSON.stringify(userApiConfig));
+       closeSettings();
+       alert('设置已保存');
+     }
+ 
+-    async function testApi() {
+-      const apiKey = document.getElementById('apiKey').value;
+-      const baseUrl = document.getElementById('apiBase').value;
+-      const model = document.getElementById('apiModel').value;
++    async function testApi(type) {
++      const apiKey = document.getElementById(`${type}ApiKey`).value;
++      const baseUrl = document.getElementById(`${type}BaseUrl`).value;
++      const model = document.getElementById(`${type}Model`).value;
+ 
+       if (!apiKey) {
+-        showTestResult('请输入 API Key', false);
++        showTestResult(type, '请输入 API Key', false);
+         return;
+       }
+ 
+-      const testResult = document.getElementById('testResult');
++      const testResult = document.getElementById(`${type}TestResult`);
+       testResult.style.display = 'block';
+       testResult.style.background = 'var(--accent-soft)';
+       testResult.style.color = 'var(--ink)';
+@@ -595,24 +632,25 @@
+           body: JSON.stringify({
+             apiKey,
+             baseUrl: baseUrl || 'https://api.openai.com/v1',
+-            model: model || 'gpt-3.5-turbo'
++            model: model || 'gpt-3.5-turbo',
++            type
+           })
+         });
+ 
+         const data = await res.json();
+ 
+         if (res.ok) {
+-          showTestResult('✓ 连接成功！API 可用', true);
++          showTestResult(type, '✓ 连接成功！API 可用', true);
+         } else {
+-          showTestResult(`✗ 连接失败: ${data.error}`, false);
++          showTestResult(type, `✗ 连接失败: ${data.error}`, false);
+         }
+       } catch (error) {
+-        showTestResult('✗ 连接失败: 网络错误', false);
++        showTestResult(type, '✗ 连接失败: 网络错误', false);
+       }
+     }
+ 
+-    function showTestResult(message, success) {
+-      const testResult = document.getElementById('testResult');
++    function showTestResult(type, message, success) {
++      const testResult = document.getElementById(`${type}TestResult`);
+       testResult.style.display = 'block';
+       testResult.style.background = success ? 'oklch(92% 0.08 140)' : 'oklch(92% 0.08 30)';
+       testResult.style.color = success ? 'oklch(35% 0.12 140)' : 'oklch(45% 0.12 30)';
+diff --git a/src/reader-server.ts b/src/reader-server.ts
+index 7597abb..2e9973d 100644
+--- a/src/reader-server.ts
++++ b/src/reader-server.ts
+@@ -3,11 +3,14 @@ import cors from 'cors';
+ import 'dotenv/config';
+ import { AIClient } from './ai.js';
+ import { ReadingPipeline } from './reading.js';
+-import { ObsidianSync } from './obsidian.js';
+ import { BookParser } from './book-parser.js';
+ import * as fs from 'fs/promises';
+ import multer from 'multer';
+ import * as path from 'path';
++import * as db from './db.js';
++import { hashPassword, verifyPassword, generateJWT, authMiddleware } from './auth.js';
++import { registerLimiter, loginLimiter, aiLimiter } from './rate-limit.js';
++import { validateFileUpload, checkBookLimit } from './file-limit.js';
+ 
+ const app = express();
+ app.use(cors());
+@@ -16,165 +19,111 @@ app.use(express.static('public'));
+ 
+ const upload = multer({ dest: '/tmp/' });
+ 
+-const ai = new AIClient(
+-  process.env.CHEAP_API_KEY!,
+-  process.env.CHEAP_BASE_URL!,
+-  process.env.MAIN_API_KEY!,
+-  process.env.MAIN_BASE_URL!
+-);
+-
+-const pipeline = new ReadingPipeline(
+-  ai,
+-  process.env.CHEAP_MODEL!,
+-  process.env.MAIN_MODEL!
+-);
+-
+-const obsidian = new ObsidianSync(process.env.OBSIDIAN_VAULT_PATH!);
+-
+-const booksDir = process.env.BOOKS_DIR || path.join(process.cwd(), 'data', 'books');
+-await fs.mkdir(booksDir, { recursive: true });
+-
+-// 获取所有已上传的书籍
+-app.get('/api/books', async (req, res) => {
+-  const files = await fs.readdir(booksDir);
+-  const books = await Promise.all(
+-    files
+-      .filter(f => /\.(epub|txt|mobi|azw3)$/i.test(f))
+-      .map(async (f, i) => {
+-        const filePath = path.join(booksDir, f);
+-        const stats = await fs.stat(filePath);
+-        return {
+-          id: i,
+-          name: path.basename(f, path.extname(f)),
+-          filename: f,
+-          size: stats.size
+-        };
+-      })
+-  );
+-  res.json(books);
++await db.initDB();
++
++app.post('/api/auth/register', registerLimiter, async (req, res) => {
++  const { email, password } = req.body;
++  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
++  if (db.getUserByEmail(email)) return res.status(400).json({ error: 'Email already exists' });
++  const userId = await db.createUser(email, await hashPassword(password));
++  res.json({ token: generateJWT(userId), userId });
+ });
+ 
+-// 上传新书
+-app.post('/api/books/upload', upload.single('file'), async (req, res) => {
+-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+-  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+-  const dest = path.join(booksDir, originalName);
+-  await fs.rename(req.file.path, dest);
+-  res.json({ success: true });
++app.post('/api/auth/login', loginLimiter, async (req, res) => {
++  const { email, password } = req.body;
++  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
++  const user = db.getUserByEmail(email);
++  if (!user || !(await verifyPassword(password, user.password_hash))) return res.status(401).json({ error: 'Invalid credentials' });
++  res.json({ token: generateJWT(user.id as number), userId: user.id });
+ });
+ 
+-// 获取书籍章节
+-app.get('/api/books/:filename/chapters', async (req, res) => {
+-  const bookPath = path.join(booksDir, req.params.filename);
+-  const chapters = await BookParser.parse(bookPath);
+-  res.json(chapters.filter(ch => ch.text.length > 2000));
++app.get('/api/user/profile', authMiddleware, async (req, res) => {
++  const user = db.getUserById((req as any).userId);
++  if (!user) return res.status(404).json({ error: 'User not found' });
++  res.json({
++    email: user.email,
++    cheap: { apiKey: user.cheap_api_key, baseUrl: user.cheap_base_url, model: user.cheap_model },
++    main: { apiKey: user.main_api_key, baseUrl: user.main_base_url, model: user.main_model }
++  });
+ });
+ 
+-// 删除书籍
+-app.delete('/api/books/:filename', async (req, res) => {
+-  const bookPath = path.join(booksDir, req.params.filename);
+-  await fs.unlink(bookPath);
++app.put('/api/user/profile', authMiddleware, async (req, res) => {
++  const { cheap, main } = req.body;
++  await db.updateUserConfig((req as any).userId, cheap.apiKey, cheap.baseUrl, cheap.model, main.apiKey, main.baseUrl, main.model);
+   res.json({ success: true });
+ });
+ 
+-// 保存/获取阅读进度
+-app.post('/api/progress', async (req, res) => {
+-  const progressFile = path.join(booksDir, 'progress.json');
+-  await fs.writeFile(progressFile, JSON.stringify(req.body));
++app.get('/api/books', authMiddleware, async (req, res) => {
++  res.json(db.getBooksByUser((req as any).userId));
++});
++
++app.post('/api/books/upload', authMiddleware, upload.single('file'), validateFileUpload, checkBookLimit, async (req, res) => {
++  const userId = (req as any).userId;
++  const file = (req as any).file;
++  const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
++  const userBooksDir = path.join(process.cwd(), 'data', 'books', String(userId));
++  await fs.mkdir(userBooksDir, { recursive: true });
++  await fs.rename(file.path, path.join(userBooksDir, originalName));
++  await db.createBook(userId, originalName, originalName, file.size);
+   res.json({ success: true });
+ });
+ 
+-app.get('/api/progress', async (req, res) => {
+-  const progressFile = path.join(booksDir, 'progress.json');
+-  try {
+-    const data = await fs.readFile(progressFile, 'utf8');
+-    res.json(JSON.parse(data));
+-  } catch {
+-    res.json({});
+-  }
++app.get('/api/books/:filename/chapters', authMiddleware, async (req, res) => {
++  const bookPath = path.join(process.cwd(), 'data', 'books', String((req as any).userId), req.params.filename);
++  const chapters = await BookParser.parse(bookPath);
++  res.json(chapters.filter(ch => ch.text.length > 2000));
+ });
+ 
+-// 测试 API 连接
+-app.post('/api/ai/test', async (req, res) => {
+-  const { apiKey, baseUrl, model } = req.body;
++app.delete('/api/books/:filename', authMiddleware, async (req, res) => {
++  const userId = (req as any).userId;
++  await fs.unlink(path.join(process.cwd(), 'data', 'books', String(userId), req.params.filename));
++  await db.deleteBook(userId, req.params.filename);
++  res.json({ success: true });
++});
+ 
+-  if (!apiKey) {
+-    return res.status(400).json({ error: '缺少 API Key' });
+-  }
++app.post('/api/progress', authMiddleware, async (req, res) => {
++  await db.saveProgress((req as any).userId, req.body.bookFilename, req.body.chapterIndex, req.body.scrollPosition);
++  res.json({ success: true });
++});
+ 
+-  try {
+-    const testAI = new AIClient(apiKey, baseUrl, apiKey, baseUrl);
+-    const testPipeline = new ReadingPipeline(testAI, model, model);
+-
+-    await testPipeline.generateComment({
+-      bookOutline: 'Test',
+-      chapterSummary: 'Test',
+-      highlightedText: 'Hello',
+-      surroundingText: 'Hello world',
+-      previousInsights: []
+-    });
+-
+-    res.json({ success: true });
+-  } catch (error: any) {
+-    res.status(500).json({ error: error.message || 'API 调用失败' });
+-  }
++app.get('/api/progress', authMiddleware, async (req, res) => {
++  res.json(db.getProgress((req as any).userId, req.query.bookFilename as string) || {});
+ });
+ 
+-// AI 生成评论
+-app.post('/api/ai/comment', async (req, res) => {
+-  const { bookTitle, chapterTitle, highlightedText, surroundingText, previousInsights, conversationHistory, userApiConfig } = req.body;
++app.post('/api/ai/comment', authMiddleware, aiLimiter, async (req, res) => {
++  const user = db.getUserById((req as any).userId);
++  if (!user?.cheap_api_key && !user?.main_api_key) return res.status(400).json({ error: 'Please configure API key' });
++  const { bookTitle, chapterTitle, highlightedText, surroundingText, previousInsights, conversationHistory } = req.body;
+ 
+-  if (!userApiConfig?.apiKey) {
+-    return res.status(400).json({ error: '未配置 API Key' });
+-  }
++  const mainConfig = user.main_api_key ? { key: user.main_api_key, url: user.main_base_url!, model: user.main_model! } : { key: user.cheap_api_key!, url: user.cheap_base_url!, model: user.cheap_model! };
++  const cheapConfig = { key: user.cheap_api_key!, url: user.cheap_base_url!, model: user.cheap_model! };
+ 
+   try {
+-    const userAI = new AIClient(
+-      userApiConfig.apiKey,
+-      userApiConfig.baseUrl || 'https://api.openai.com/v1',
+-      userApiConfig.apiKey,
+-      userApiConfig.baseUrl || 'https://api.openai.com/v1'
+-    );
+-
++    const userAI = new AIClient(cheapConfig.key, cheapConfig.url, mainConfig.key, mainConfig.url);
+     let comment: string;
+-
+-    if (conversationHistory && conversationHistory.length > 0) {
+-      const lastUserMsg = conversationHistory[conversationHistory.length - 1];
+-      const prompt = `基于之前的对话，回��读者的追问：\n\n${lastUserMsg.content}`;
+-      comment = await userAI.complete(userApiConfig.model || 'gpt-4', prompt, true);
++    if (conversationHistory?.length > 0) {
++      comment = await userAI.complete(mainConfig.model, `基于之前的对话，回答：\n\n${conversationHistory[conversationHistory.length - 1].content}`, true);
+     } else {
+-      const userPipeline = new ReadingPipeline(
+-        userAI,
+-        userApiConfig.model || 'gpt-3.5-turbo',
+-        userApiConfig.model || 'gpt-4'
+-      );
+-
+-      comment = await userPipeline.generateComment({
+-        bookOutline: bookTitle,
+-        chapterSummary: chapterTitle,
+-        highlightedText,
+-        surroundingText,
+-        previousInsights: previousInsights || []
+-      });
++      const pipeline = new ReadingPipeline(userAI, cheapConfig.model, mainConfig.model);
++      comment = await pipeline.generateComment({ bookOutline: bookTitle, chapterSummary: chapterTitle, highlightedText, surroundingText, previousInsights: previousInsights || [] });
+     }
+-
+     res.json({ comment });
+-  } catch (error) {
+-    console.error('AI comment error:', error);
+-    res.status(500).json({ error: 'AI 调用失败，请检查 API 配置' });
++  } catch (error: any) {
++    res.status(500).json({ error: error.message || 'AI failed' });
+   }
+ });
+ 
+-// 保存笔记
+-app.post('/api/notes/save', async (req, res) => {
++app.post('/api/notes/export', authMiddleware, async (req, res) => {
+   const { bookTitle, notes } = req.body;
+-  await obsidian.syncBook(bookTitle, notes);
+-  res.json({ success: true });
++  let content = `# ${bookTitle}\n\n> 最后更新：${new Date().toLocaleString('zh-CN')}\n\n`;
++  for (const note of notes) {
++    content += `## ${note.chapterTitle}\n\n> ${note.highlightedText}\n\n${note.aiComment}\n\n`;
++    if (note.userAnnotation) content += `**我的批注**：${note.userAnnotation}\n\n`;
++    content += `*${note.timestamp}*\n\n---\n\n`;
++  }
++  res.setHeader('Content-Type', 'text/markdown');
++  res.setHeader('Content-Disposition', `attachment; filename="${bookTitle}.md"`);
++  res.send(content);
+ });
+ 
+-const PORT = process.env.PORT || 3000;
+-
+-app.listen(PORT, '0.0.0.0', () => {
+-  console.log(`🚀 阅读服务器启动: http://localhost:${PORT}`);
+-  console.log('📱 手机访问请使用: http://<你的电脑IP>:' + PORT);
+-});
++app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 Server: http://localhost:${process.env.PORT || 3000}`));

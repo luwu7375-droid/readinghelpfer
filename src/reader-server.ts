@@ -3,11 +3,14 @@ import cors from 'cors';
 import 'dotenv/config';
 import { AIClient } from './ai.js';
 import { ReadingPipeline } from './reading.js';
-import { ObsidianSync } from './obsidian.js';
 import { BookParser } from './book-parser.js';
 import * as fs from 'fs/promises';
 import multer from 'multer';
 import * as path from 'path';
+import * as db from './db.js';
+import { hashPassword, verifyPassword, generateJWT, authMiddleware } from './auth.js';
+import { registerLimiter, loginLimiter, aiLimiter } from './rate-limit.js';
+import { validateFileUpload, checkBookLimit } from './file-limit.js';
 
 const app = express();
 app.use(cors());
@@ -16,165 +19,112 @@ app.use(express.static('public'));
 
 const upload = multer({ dest: '/tmp/' });
 
-const ai = new AIClient(
-  process.env.CHEAP_API_KEY!,
-  process.env.CHEAP_BASE_URL!,
-  process.env.MAIN_API_KEY!,
-  process.env.MAIN_BASE_URL!
-);
+await db.initDB();
 
-const pipeline = new ReadingPipeline(
-  ai,
-  process.env.CHEAP_MODEL!,
-  process.env.MAIN_MODEL!
-);
-
-const obsidian = new ObsidianSync(process.env.OBSIDIAN_VAULT_PATH!);
-
-const booksDir = process.env.BOOKS_DIR || path.join(process.cwd(), 'data', 'books');
-await fs.mkdir(booksDir, { recursive: true });
-
-// 获取所有已上传的书籍
-app.get('/api/books', async (req, res) => {
-  const files = await fs.readdir(booksDir);
-  const books = await Promise.all(
-    files
-      .filter(f => /\.(epub|txt|mobi|azw3)$/i.test(f))
-      .map(async (f, i) => {
-        const filePath = path.join(booksDir, f);
-        const stats = await fs.stat(filePath);
-        return {
-          id: i,
-          name: path.basename(f, path.extname(f)),
-          filename: f,
-          size: stats.size
-        };
-      })
-  );
-  res.json(books);
+app.post('/api/auth/register', registerLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  if (db.getUserByEmail(email)) return res.status(400).json({ error: 'Email already exists' });
+  const userId = await db.createUser(email, await hashPassword(password));
+  res.json({ token: generateJWT(userId), userId });
 });
 
-// 上传新书
-app.post('/api/books/upload', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
-  const dest = path.join(booksDir, originalName);
-  await fs.rename(req.file.path, dest);
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  const user = db.getUserByEmail(email);
+  if (!user || !(await verifyPassword(password, user.password_hash))) return res.status(401).json({ error: 'Invalid credentials' });
+  res.json({ token: generateJWT(user.id as number), userId: user.id });
+});
+
+app.get('/api/user/profile', authMiddleware, async (req, res) => {
+  const user = db.getUserById((req as any).userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ email: user.email });
+});
+
+app.put('/api/user/profile', authMiddleware, async (req, res) => {
   res.json({ success: true });
 });
 
-// 获取书籍章节
-app.get('/api/books/:filename/chapters', async (req, res) => {
-  const bookPath = path.join(booksDir, req.params.filename);
+app.get('/api/books', authMiddleware, async (req, res) => {
+  res.json(db.getBooksByUser((req as any).userId));
+});
+
+app.post('/api/books/upload', authMiddleware, upload.single('file'), validateFileUpload, checkBookLimit, async (req, res) => {
+  const userId = (req as any).userId;
+  const file = (req as any).file;
+  const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+  const userBooksDir = path.join(process.cwd(), 'data', 'books', String(userId));
+  await fs.mkdir(userBooksDir, { recursive: true });
+  await fs.rename(file.path, path.join(userBooksDir, originalName));
+  await db.createBook(userId, originalName, originalName, file.size);
+  res.json({ success: true });
+});
+
+app.get('/api/books/:filename/chapters', authMiddleware, async (req, res) => {
+  const bookPath = path.join(process.cwd(), 'data', 'books', String((req as any).userId), req.params.filename);
   const chapters = await BookParser.parse(bookPath);
   res.json(chapters.filter(ch => ch.text.length > 2000));
 });
 
-// 删除书籍
-app.delete('/api/books/:filename', async (req, res) => {
-  const bookPath = path.join(booksDir, req.params.filename);
-  await fs.unlink(bookPath);
+app.delete('/api/books/:filename', authMiddleware, async (req, res) => {
+  const userId = (req as any).userId;
+  await fs.unlink(path.join(process.cwd(), 'data', 'books', String(userId), req.params.filename));
+  await db.deleteBook(userId, req.params.filename);
   res.json({ success: true });
 });
 
-// 保存/获取阅读进度
-app.post('/api/progress', async (req, res) => {
-  const progressFile = path.join(booksDir, 'progress.json');
-  await fs.writeFile(progressFile, JSON.stringify(req.body));
+app.post('/api/progress', authMiddleware, async (req, res) => {
+  await db.saveProgress((req as any).userId, req.body.bookFilename, req.body.chapterIndex, req.body.scrollPosition);
   res.json({ success: true });
 });
 
-app.get('/api/progress', async (req, res) => {
-  const progressFile = path.join(booksDir, 'progress.json');
-  try {
-    const data = await fs.readFile(progressFile, 'utf8');
-    res.json(JSON.parse(data));
-  } catch {
-    res.json({});
-  }
+app.get('/api/progress', authMiddleware, async (req, res) => {
+  res.json(db.getProgress((req as any).userId, req.query.bookFilename as string) || {});
 });
 
-// 测试 API 连接
-app.post('/api/ai/test', async (req, res) => {
-  const { apiKey, baseUrl, model } = req.body;
-
-  if (!apiKey) {
-    return res.status(400).json({ error: '缺少 API Key' });
-  }
-
-  try {
-    const testAI = new AIClient(apiKey, baseUrl, apiKey, baseUrl);
-    const testPipeline = new ReadingPipeline(testAI, model, model);
-
-    await testPipeline.generateComment({
-      bookOutline: 'Test',
-      chapterSummary: 'Test',
-      highlightedText: 'Hello',
-      surroundingText: 'Hello world',
-      previousInsights: []
-    });
-
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || 'API 调用失败' });
-  }
-});
-
-// AI 生成评论
-app.post('/api/ai/comment', async (req, res) => {
+app.post('/api/ai/comment', authMiddleware, aiLimiter, async (req, res) => {
   const { bookTitle, chapterTitle, highlightedText, surroundingText, previousInsights, conversationHistory, userApiConfig } = req.body;
 
-  if (!userApiConfig?.apiKey) {
-    return res.status(400).json({ error: '未配置 API Key' });
+  const mainConfig = userApiConfig.main?.apiKey ? userApiConfig.main : userApiConfig.cheap;
+  const cheapConfig = userApiConfig.cheap;
+
+  if (!cheapConfig?.apiKey && !mainConfig?.apiKey) {
+    return res.status(400).json({ error: 'Please configure API key' });
   }
 
   try {
     const userAI = new AIClient(
-      userApiConfig.apiKey,
-      userApiConfig.baseUrl || 'https://api.openai.com/v1',
-      userApiConfig.apiKey,
-      userApiConfig.baseUrl || 'https://api.openai.com/v1'
+      cheapConfig.apiKey,
+      cheapConfig.baseUrl || 'https://api.openai.com/v1',
+      mainConfig.apiKey,
+      mainConfig.baseUrl || 'https://api.openai.com/v1'
     );
-
     let comment: string;
-
-    if (conversationHistory && conversationHistory.length > 0) {
-      const lastUserMsg = conversationHistory[conversationHistory.length - 1];
-      const prompt = `基于之前的对话，回��读者的追问：\n\n${lastUserMsg.content}`;
-      comment = await userAI.complete(userApiConfig.model || 'gpt-4', prompt, true);
+    if (conversationHistory?.length > 0) {
+      comment = await userAI.complete(mainConfig.model || 'gpt-4', `基于之前的对话，回答：\n\n${conversationHistory[conversationHistory.length - 1].content}`, true);
     } else {
-      const userPipeline = new ReadingPipeline(
-        userAI,
-        userApiConfig.model || 'gpt-3.5-turbo',
-        userApiConfig.model || 'gpt-4'
-      );
-
-      comment = await userPipeline.generateComment({
-        bookOutline: bookTitle,
-        chapterSummary: chapterTitle,
-        highlightedText,
-        surroundingText,
-        previousInsights: previousInsights || []
-      });
+      const pipeline = new ReadingPipeline(userAI, cheapConfig.model || 'gpt-3.5-turbo', mainConfig.model || 'gpt-4');
+      comment = await pipeline.generateComment({ bookOutline: bookTitle, chapterSummary: chapterTitle, highlightedText, surroundingText, previousInsights: previousInsights || [] });
     }
-
     res.json({ comment });
-  } catch (error) {
-    console.error('AI comment error:', error);
-    res.status(500).json({ error: 'AI 调用失败，请检查 API 配置' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'AI failed' });
   }
 });
 
-// 保存笔记
-app.post('/api/notes/save', async (req, res) => {
+app.post('/api/notes/export', authMiddleware, async (req, res) => {
   const { bookTitle, notes } = req.body;
-  await obsidian.syncBook(bookTitle, notes);
-  res.json({ success: true });
+  let content = `# ${bookTitle}\n\n> 最后更新：${new Date().toLocaleString('zh-CN')}\n\n`;
+  for (const note of notes) {
+    content += `## ${note.chapterTitle}\n\n> ${note.highlightedText}\n\n${note.aiComment}\n\n`;
+    if (note.userAnnotation) content += `**我的批注**：${note.userAnnotation}\n\n`;
+    content += `*${note.timestamp}*\n\n---\n\n`;
+  }
+  res.setHeader('Content-Type', 'text/markdown');
+  res.setHeader('Content-Disposition', `attachment; filename="${bookTitle}.md"`);
+  res.send(content);
 });
 
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 阅读服务器启动: http://localhost:${PORT}`);
-  console.log('📱 手机访问请使用: http://<你的电脑IP>:' + PORT);
-});
+app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log(`🚀 Server: http://localhost:${process.env.PORT || 3000}`));
