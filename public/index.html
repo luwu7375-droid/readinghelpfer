@@ -387,6 +387,7 @@
     <button class="menu-btn" onclick="handleHighlight('ai')">AI 评论</button>
     <button class="menu-btn" onclick="handleHighlight('discuss')">与 AI 讨论</button>
     <button class="menu-btn" onclick="handleHighlight('mark')">仅标记</button>
+    <button class="menu-btn" onclick="handleHighlight('bookmark')">添加书签</button>
   </div>
 
   <div id="inputDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
@@ -500,7 +501,6 @@
       if (e.target.closest('#highlightMenu')) return;
       if (e.target.closest('#inputDialog')) return;
       if (window.getSelection().toString().length > 0) return;
-      if (bookmarkFired) { bookmarkFired = false; return; }
 
       const reader = document.getElementById('reader');
       const rect = reader.getBoundingClientRect();
@@ -751,7 +751,7 @@
       });
 
       const paragraphs = htmlText.split('\n\n')
-        .map((p, i) => `<p data-para="${i}" onmousedown="startBookmarkTimer(${i})" onmouseup="clearBookmarkTimer()" ontouchstart="startBookmarkTimer(${i})" ontouchend="clearBookmarkTimer()">${p}</p>`)
+        .map((p, i) => `<p data-para="${i}">${p}</p>`)
         .join('');
       document.getElementById('reader').innerHTML = `<h1>${title}</h1>${paragraphs}`;
       document.querySelectorAll('.chapter-item').forEach((el, i) => el.classList.toggle('active', i === index));
@@ -774,18 +774,7 @@
       }
     }
 
-    let bookmarkTimer = null;
-    let bookmarkFired = false;
-    function startBookmarkTimer(paraIndex) {
-      bookmarkFired = false;
-      bookmarkTimer = setTimeout(() => {
-        bookmarkFired = true;
-        toggleBookmark(paraIndex);
-      }, 500);
-    }
-    function clearBookmarkTimer() {
-      clearTimeout(bookmarkTimer);
-    }
+
 
     function toggleBookmark(paraIndex) {
       if (!bookmarks[currentBook.name]) bookmarks[currentBook.name] = [];
@@ -818,7 +807,6 @@
         const selection = window.getSelection();
         selectedText = selection.toString().trim();
         if (selectedText.length > 5) {
-          clearBookmarkTimer(); // 取消书签定时器
           selectedRange = selection.getRangeAt(0);
           const menu = document.getElementById('highlightMenu');
           menu.style.display = 'block';
@@ -837,6 +825,18 @@
 
     async function handleHighlight(type) {
       document.getElementById('highlightMenu').style.display = 'none';
+
+      // 书签：找到选区所在段落，切换书签后返回
+      if (type === 'bookmark') {
+        const para = selectedRange.startContainer.nodeType === Node.TEXT_NODE
+          ? selectedRange.startContainer.parentElement.closest('p')
+          : selectedRange.startContainer.closest('p');
+        if (para && para.dataset.para !== undefined) {
+          toggleBookmark(parseInt(para.dataset.para));
+        }
+        window.getSelection().removeAllRanges();
+        return;
+      }
 
       const parentPara = selectedRange.startContainer.parentElement.closest('p');
       const paragraphText = parentPara ? parentPara.textContent : '';
