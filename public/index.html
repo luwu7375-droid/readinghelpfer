@@ -685,14 +685,33 @@
 
     async function deleteBook(filename) {
       if (!confirm('确认删除这本书？')) return;
+      const deletingCurrent = currentBook && currentBook.filename === decodeURIComponent(filename);
       await fetch(`${API_BASE}/api/books/${filename}`, { method: 'DELETE' });
-      if (currentBook && currentBook.filename === decodeURIComponent(filename)) {
-        document.getElementById('reader').innerHTML = '<div class="empty-state">静候书页翻开</div>';
-        document.getElementById('chapterList').innerHTML = '';
+
+      if (deletingCurrent) {
         currentBook = null;
         currentChapter = null;
+        document.getElementById('chapterList').innerHTML = '';
+
+        // 取剩余书单，自动切换
+        const res = await fetch(`${API_BASE}/api/books`);
+        const books = await res.json();
+        if (books.length > 0) {
+          const next = books[books.length - 1]; // 优先切到最后一本（即"上一本"）
+          document.getElementById('bookList').innerHTML = books.map(book =>
+            `<div class="book-item" onclick="loadChapters('${encodeURIComponent(book.filename)}', '${book.name}')" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>${book.name}</span>
+              <button onclick="event.stopPropagation();deleteBook('${encodeURIComponent(book.filename)}')" style="background:none;border:none;color:var(--ink-lighter);cursor:pointer;padding:4px 8px;font-size:16px;" title="删除">×</button>
+            </div>`
+          ).join('');
+          loadChapters(encodeURIComponent(next.filename), next.name);
+        } else {
+          document.getElementById('reader').innerHTML = '<div class="empty-state">静候书页翻开</div>';
+          loadBooks();
+        }
+      } else {
+        loadBooks();
       }
-      loadBooks();
     }
 
     async function loadChapters(filename, bookName) {
@@ -799,6 +818,7 @@
         const selection = window.getSelection();
         selectedText = selection.toString().trim();
         if (selectedText.length > 5) {
+          clearBookmarkTimer(); // 取消书签定时器
           selectedRange = selection.getRangeAt(0);
           const menu = document.getElementById('highlightMenu');
           menu.style.display = 'block';
@@ -821,12 +841,57 @@
       const parentPara = selectedRange.startContainer.parentElement.closest('p');
       const paragraphText = parentPara ? parentPara.textContent : '';
 
+      // 如果选区跨越多个段落，收缩到起始段落末尾，避免 deleteContents 破坏 DOM 结构
+      const startPara = selectedRange.startContainer.nodeType === Node.TEXT_NODE
+        ? selectedRange.startContainer.parentElement.closest('p')
+        : selectedRange.startContainer.closest('p');
+      const endPara = selectedRange.endContainer.nodeType === Node.TEXT_NODE
+        ? selectedRange.endContainer.parentElement.closest('p')
+        : selectedRange.endContainer.closest('p');
+
+      if (startPara && endPara && startPara !== endPara) {
+        // 跨段落：只取选区内的文本，不操作 DOM，仅记录笔记
+        const noteId = String(Date.now());
+        const note = {
+          id: noteId,
+          chapterTitle: currentChapter.title,
+          highlightedText: selectedText,
+          contextText: paragraphText,
+          aiComment: '',
+          timestamp: new Date().toLocaleString('zh-CN')
+        };
+
+        if (type === 'self') {
+          const comment = await showDialog('写下你的想法');
+          if (comment) note.aiComment = comment;
+        } else if (type === 'ai') {
+          if (!userApiConfig.apiKey) { alert('请先在设置中配置 API Key'); return; }
+          note.aiComment = '[点击"继续讨论"获取 AI 评论]';
+          note.pendingAI = true;
+        } else if (type === 'discuss') {
+          const question = await showDialog('你想讨论什么？');
+          if (question) note.aiComment = `${question}\n\n正在回复…`;
+        }
+
+        notes.unshift(note);
+        renderNotes();
+        persistNotes();
+        window.getSelection().removeAllRanges();
+        return;
+      }
+
+      // 同段落内：正常插入高亮 span
       const span = document.createElement('span');
       span.className = 'highlight';
       span.textContent = selectedText;
       span.dataset.noteId = Date.now();
-      selectedRange.deleteContents();
-      selectedRange.insertNode(span);
+      try {
+        selectedRange.deleteContents();
+        selectedRange.insertNode(span);
+      } catch (e) {
+        // 操作失败时降级为只记录笔记，不插入 DOM
+        console.warn('highlight insert failed', e);
+      }
 
       const note = {
         id: span.dataset.noteId,
