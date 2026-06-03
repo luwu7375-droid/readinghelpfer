@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阅读助手</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Noto+Serif+SC:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --paper: oklch(97% 0.01 60);
+      --ink: oklch(25% 0.01 60);
+      --ink-fade: oklch(50% 0.01 60);
+      --ink-lighter: oklch(70% 0.01 60);
+      --accent: oklch(45% 0.08 30);
+      --accent-soft: oklch(92% 0.02 30);
+      --divider: oklch(88% 0.005 60);
+      --highlight-bg: oklch(88% 0.04 50);
+      --shadow: oklch(0% 0 0 / 0.05);
+    }
+
+    body.dark {
+      --paper: oklch(18% 0.01 60);
+      --ink: oklch(88% 0.01 60);
+      --ink-fade: oklch(65% 0.01 60);
+      --ink-lighter: oklch(50% 0.01 60);
+      --accent: oklch(68% 0.08 30);
+      --accent-soft: oklch(25% 0.02 30);
+      --divider: oklch(28% 0.005 60);
+      --highlight-bg: oklch(30% 0.04 50);
+      --shadow: oklch(0% 0 0 / 0.2);
+    }
+
+    body {
+      font-family: 'Noto Serif SC', 'Merriweather', serif;
+      background: var(--paper);
+      color: var(--ink);
+      transition: background 0.4s, color 0.4s;
+    }
+
+    .container { display: flex; height: 100vh; }
+
+    .sidebar {
+      width: 240px;
+      background: var(--paper);
+      padding: 32px 20px;
+      overflow-y: auto;
+      border-right: 1px solid var(--divider);
+    }
+
+    .main { flex: 1; display: flex; flex-direction: column; }
+
+    .reader {
+      flex: 1;
+      padding: 48px clamp(60px, 10vw, 140px) 120px;
+      overflow-y: auto;
+      max-width: 920px;
+      margin: 0 auto;
+      line-height: 2.1;
+      font-size: clamp(16px, 1.1vw, 18px);
+      letter-spacing: 0.02em;
+    }
+
+    .notes-panel {
+      width: 340px;
+      background: var(--paper);
+      padding: 32px 20px;
+      overflow-y: auto;
+      border-left: 1px solid var(--divider);
+    }
+
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      margin-bottom: 24px;
+      transition: all 0.3s;
+    }
+    .theme-toggle:hover { transform: rotate(180deg); }
+
+    h2 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-lighter);
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-lighter);
+      margin: 32px 0 12px;
+    }
+
+    .book-item {
+      padding: 12px 8px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      transition: color 0.2s;
+      font-size: 15px;
+      color: var(--ink-fade);
+      border-left: 2px solid transparent;
+      padding-left: 10px;
+    }
+    .book-item:hover {
+      color: var(--ink);
+      border-left-color: var(--accent);
+    }
+
+    .chapter-item {
+      padding: 8px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--ink-fade);
+      transition: all 0.2s;
+      border-radius: 4px;
+    }
+    .chapter-item:hover { color: var(--ink); }
+    .chapter-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .reader h1 {
+      font-size: clamp(24px, 3vw, 32px);
+      font-weight: 600;
+      margin-bottom: 48px;
+      color: var(--ink);
+      letter-spacing: 0.01em;
+    }
+
+    .reader p {
+      margin-bottom: 1.4em;
+      color: var(--ink);
+      text-indent: 2em;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .reader p:hover::before {
+      content: '🔖';
+      position: absolute;
+      left: -30px;
+      opacity: 0.5;
+    }
+
+    .bookmark {
+      background: linear-gradient(to right, var(--accent-soft) 0%, transparent 100%);
+      border-left: 3px solid var(--accent);
+      padding-left: 8px;
+    }
+
+    .highlight {
+      background: linear-gradient(to bottom, transparent 70%, var(--highlight-bg) 70%);
+      cursor: pointer;
+      padding: 2px 0;
+      border-bottom: 1px solid var(--accent);
+      transition: all 0.2s;
+    }
+    .highlight:hover { background: var(--highlight-bg); }
+
+    .highlight-menu {
+      position: fixed;
+      background: var(--paper);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: 0 8px 32px var(--shadow);
+      z-index: 1000;
+      border: 1px solid var(--divider);
+    }
+    .menu-btn {
+      display: block;
+      width: 100%;
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 13px;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+    .menu-btn:hover { background: var(--accent-soft); }
+
+    .note-card {
+      background: var(--paper);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--divider);
+      position: relative;
+      transition: all 0.2s;
+    }
+    .note-card:hover {
+      box-shadow: 0 4px 16px var(--shadow);
+      border-color: var(--accent);
+    }
+    .note-card:hover .delete-btn { opacity: 1; }
+
+    .note-highlight {
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .note-comment {
+      color: var(--ink-fade);
+      font-size: 13px;
+      line-height: 1.8;
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+
+    .note-time {
+      color: var(--ink-lighter);
+      font-size: 11px;
+      margin-top: 12px;
+      letter-spacing: 0.03em;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--ink-lighter);
+      color: var(--paper);
+      border: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 12px;
+      opacity: 0;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .delete-btn:hover {
+      background: var(--accent);
+      transform: scale(1.1);
+    }
+
+    button.save-btn {
+      background: var(--accent);
+      color: var(--paper);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      font-family: inherit;
+      letter-spacing: 0.05em;
+    }
+    button.save-btn:hover {
+      background: var(--ink);
+      transform: translateY(-1px);
+    }
+
+    .notes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .empty-state {
+      color: var(--ink-lighter);
+      text-align: center;
+      padding: 60px 20px;
+      font-size: 14px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">◐</button>
+      <h2>书库</h2>
+      <input type="file" id="uploadBook" accept=".epub" style="display:none" onchange="uploadBook()">
+      <button class="save-btn" onclick="document.getElementById('uploadBook').click()" style="margin-bottom:12px;width:100%">+ 添加书籍</button>
+      <div id="bookList"></div>
+      <h3>章节</h3>
+      <div id="chapterList"></div>
+    </div>
+
+    <div class="main">
+      <div class="reader" id="reader">
+        <div class="empty-state">静候书页翻开</div>
+      </div>
+    </div>
+
+    <div class="notes-panel">
+      <div class="notes-header">
+        <h2>笔记</h2>
+        <button class="save-btn" onclick="saveNotes()">保存</button>
+      </div>
+      <div id="notesList"></div>
+    </div>
+  </div>
+
+  <div id="highlightMenu" class="highlight-menu" style="display: none;">
+    <button class="menu-btn" onclick="handleHighlight('self')">自己写</button>
+    <button class="menu-btn" onclick="handleHighlight('ai')">AI 评论</button>
+    <button class="menu-btn" onclick="handleHighlight('discuss')">与 AI 讨论</button>
+    <button class="menu-btn" onclick="handleHighlight('mark')">仅标记</button>
+  </div>
+
+  <div id="inputDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:var(--paper);padding:24px;border-radius:8px;width:400px;max-width:90%;">
+      <h3 style="margin-bottom:16px;color:var(--ink);" id="dialogTitle">输入内容</h3>
+      <textarea id="dialogInput" style="width:100%;min-height:100px;padding:12px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);resize:vertical;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+        <button class="menu-btn" onclick="closeDialog()">取消</button>
+        <button class="save-btn" onclick="submitDialog()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    let currentBook = null;
+    let currentChapter = null;
+    let notes = [];
+    let selectedText = '';
+    let selectedRange = null;
+    let progress = {};
+    let bookmarks = {};
+    let dialogResolve = null;
+
+    function showDialog(title, placeholder = '') {
+      return new Promise(resolve => {
+        dialogResolve = resolve;
+        document.getElementById('dialogTitle').textContent = title;
+        document.getElementById('dialogInput').value = '';
+        document.getElementById('dialogInput').placeholder = placeholder;
+        document.getElementById('inputDialog').style.display = 'flex';
+        document.getElementById('dialogInput').focus();
+      });
+    }
+
+    function closeDialog() {
+      document.getElementById('inputDialog').style.display = 'none';
+      if (dialogResolve) dialogResolve(null);
+    }
+
+    function submitDialog() {
+      const value = document.getElementById('dialogInput').value.trim();
+      document.getElementById('inputDialog').style.display = 'none';
+      if (dialogResolve) dialogResolve(value);
+    }
+
+    async function uploadBook() {
+      const file = document.getElementById('uploadBook').files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      await fetch(`${API_BASE}/api/books/upload`, { method: 'POST', body: formData });
+      document.getElementById('uploadBook').value = '';
+      loadBooks();
+    }
+
+    async function loadProgress() {
+      const res = await fetch(`${API_BASE}/api/progress`);
+      const data = await res.json();
+      progress = data.progress || {};
+      bookmarks = data.bookmarks || {};
+    }
+
+    async function saveProgress() {
+      await fetch(`${API_BASE}/api/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ progress, bookmarks })
+      });
+    }
+
+    async function loadBooks() {
+      const res = await fetch(`${API_BASE}/api/books`);
+      const books = await res.json();
+      document.getElementById('bookList').innerHTML = books.map(book =>
+        `<div class="book-item" onclick="loadChapters('${encodeURIComponent(book.filename)}', '${book.name}')" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>${book.name}</span>
+          <button onclick="event.stopPropagation();deleteBook('${encodeURIComponent(book.filename)}')" style="background:none;border:none;color:var(--ink-lighter);cursor:pointer;padding:4px 8px;font-size:16px;" title="删除">×</button>
+        </div>`
+      ).join('');
+    }
+
+    async function deleteBook(filename) {
+      if (!confirm('确认删除这本书？')) return;
+      await fetch(`${API_BASE}/api/books/${filename}`, { method: 'DELETE' });
+      if (currentBook && currentBook.filename === decodeURIComponent(filename)) {
+        document.getElementById('reader').innerHTML = '<div class="empty-state">静候书页翻开</div>';
+        document.getElementById('chapterList').innerHTML = '';
+        currentBook = null;
+        currentChapter = null;
+      }
+      loadBooks();
+    }
+
+    async function loadChapters(filename, bookName) {
+      currentBook = { filename, name: bookName };
+      const res = await fetch(`${API_BASE}/api/books/${filename}/chapters`);
+      const chapters = await res.json();
+      document.getElementById('chapterList').innerHTML = chapters.map((ch, i) =>
+        `<div class="chapter-item" onclick="loadChapter(${i}, '${ch.title}')">${ch.title}</div>`
+      ).join('');
+      window.chapters = chapters;
+
+      const bookBookmarks = bookmarks[bookName] || [];
+      if (bookBookmarks.length > 0) {
+        const latest = bookBookmarks[bookBookmarks.length - 1];
+        loadChapter(latest.chapter, chapters[latest.chapter].title);
+      } else {
+        loadChapter(0, chapters[0].title);
+      }
+    }
+
+    function loadChapter(index, title) {
+      currentChapter = { index, title };
+      const chapter = window.chapters[index];
+      const paragraphs = chapter.text.split('\n\n')
+        .map((p, i) => `<p data-para="${i}" onclick="toggleBookmark(${i})">${p}</p>`)
+        .join('');
+      document.getElementById('reader').innerHTML = `<h1>${title}</h1>${paragraphs}`;
+      document.querySelectorAll('.chapter-item').forEach((el, i) => el.classList.toggle('active', i === index));
+      enableTextSelection();
+
+      const bookBookmarks = bookmarks[currentBook.name] || [];
+      const chapterBookmarks = bookBookmarks.filter(b => b.chapter === index);
+      chapterBookmarks.forEach(b => {
+        const para = document.querySelector(`[data-para="${b.paragraph}"]`);
+        if (para) para.classList.add('bookmark');
+      });
+
+      if (chapterBookmarks.length > 0) {
+        const latest = chapterBookmarks[chapterBookmarks.length - 1];
+        setTimeout(() => {
+          const para = document.querySelector(`[data-para="${latest.paragraph}"]`);
+          if (para) para.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+
+    function toggleBookmark(paraIndex) {
+      if (!bookmarks[currentBook.name]) bookmarks[currentBook.name] = [];
+      const bookBookmarks = bookmarks[currentBook.name];
+      const existingIndex = bookBookmarks.findIndex(b =>
+        b.chapter === currentChapter.index && b.paragraph === paraIndex
+      );
+
+      const para = document.querySelector(`[data-para="${paraIndex}"]`);
+
+      if (existingIndex >= 0) {
+        bookBookmarks.splice(existingIndex, 1);
+        para.classList.remove('bookmark');
+        console.log('书签已移除');
+      } else {
+        bookBookmarks.push({
+          chapter: currentChapter.index,
+          paragraph: paraIndex,
+          time: new Date().toISOString()
+        });
+        para.classList.add('bookmark');
+        console.log('书签已添加');
+      }
+
+      saveProgress();
+    }
+
+    function enableTextSelection() {
+      document.getElementById('reader').addEventListener('mouseup', (e) => {
+        const selection = window.getSelection();
+        selectedText = selection.toString().trim();
+        if (selectedText.length > 5) {
+          selectedRange = selection.getRangeAt(0);
+          const menu = document.getElementById('highlightMenu');
+          menu.style.display = 'block';
+          menu.style.left = e.pageX + 'px';
+          menu.style.top = (e.pageY + 20) + 'px';
+        }
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#highlightMenu') && !e.target.closest('.reader')) {
+          document.getElementById('highlightMenu').style.display = 'none';
+        }
+      });
+    }
+
+    async function handleHighlight(type) {
+      document.getElementById('highlightMenu').style.display = 'none';
+
+      const span = document.createElement('span');
+      span.className = 'highlight';
+      span.textContent = selectedText;
+      span.dataset.noteId = Date.now();
+      selectedRange.deleteContents();
+      selectedRange.insertNode(span);
+
+      const note = {
+        id: span.dataset.noteId,
+        chapterTitle: currentChapter.title,
+        highlightedText: selectedText,
+        aiComment: '',
+        timestamp: new Date().toLocaleString('zh-CN')
+      };
+
+      if (type === 'self') {
+        const comment = await showDialog('写下你的想法');
+        if (comment) note.aiComment = comment;
+      } else if (type === 'ai') {
+        note.aiComment = '正在思考…';
+        notes.unshift(note);
+        renderNotes();
+
+        const text = window.chapters[currentChapter.index].text;
+        const pos = text.indexOf(selectedText);
+        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+
+        const res = await fetch(`${API_BASE}/api/ai/comment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookTitle: currentBook.name,
+            chapterTitle: currentChapter.title,
+            highlightedText: selectedText,
+            surroundingText: surrounding,
+            previousInsights: notes.slice(1).map(n => n.aiComment)
+          })
+        });
+        const data = await res.json();
+        notes[0].aiComment = data.comment;
+      } else if (type === 'discuss') {
+        const question = await showDialog('你想讨论什么？');
+        if (question) note.aiComment = `${question}\n\n正在回复…`;
+      }
+
+      if (type !== 'ai') notes.unshift(note);
+      renderNotes();
+      window.getSelection().removeAllRanges();
+    }
+
+    function renderNotes() {
+      document.getElementById('notesList').innerHTML = notes.map((note, index) => `
+        <div class="note-card">
+          <button class="delete-btn" onclick="deleteNote(${index})" title="删除">×</button>
+          <div class="note-highlight">"${note.highlightedText.slice(0, 80)}${note.highlightedText.length > 80 ? '…' : ''}"</div>
+          ${note.aiComment ? `<div class="note-comment">${note.aiComment}</div>` : ''}
+          <div class="note-time">${note.timestamp}</div>
+        </div>
+      `).join('');
+    }
+
+    function deleteNote(index) {
+      if (confirm('确认删除这条笔记？')) {
+        const note = notes[index];
+        const highlights = document.querySelectorAll('.highlight');
+        highlights.forEach(span => {
+          if (span.dataset.noteId === note.id) {
+            const text = document.createTextNode(span.textContent);
+            span.parentNode.replaceChild(text, span);
+          }
+        });
+        notes.splice(index, 1);
+        renderNotes();
+      }
+    }
+
+    async function saveNotes() {
+      await fetch(`${API_BASE}/api/notes/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookTitle: currentBook.name, notes })
+      });
+      alert('已保存至 Obsidian');
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    }
+
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark');
+    }
+
+    loadProgress().then(loadBooks);
+  </script>
+</body>
+</html>
