@@ -498,6 +498,7 @@
 
     function handleClickPage(e) {
       if (e.target.closest('#highlightMenu')) return;
+      if (e.target.closest('#inputDialog')) return;
       if (window.getSelection().toString().length > 0) return;
       if (bookmarkFired) { bookmarkFired = false; return; }
 
@@ -625,7 +626,7 @@
         document.getElementById('dialogInput').value = '';
         document.getElementById('dialogInput').placeholder = placeholder;
         document.getElementById('inputDialog').style.display = 'flex';
-        document.getElementById('dialogInput').focus();
+        setTimeout(() => document.getElementById('dialogInput').focus(), 100);
       });
     }
 
