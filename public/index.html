@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Noto+Serif+SC:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -62,6 +63,39 @@
       line-height: 2.1;
       font-size: clamp(16px, 1.1vw, 18px);
       letter-spacing: 0.02em;
+    }
+
+    .reader.page-mode {
+      height: calc(100vh - 80px);
+      overflow-y: hidden !important;
+      overflow-x: scroll !important;
+      column-count: 2;
+      column-gap: 80px;
+      column-fill: auto;
+      padding: 24px 0;
+      width: calc(100% - 160px);
+      margin: 0 auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .reader.page-mode::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    @media (max-width: 768px) {
+      .reader.page-mode {
+        column-count: 1;
+        column-gap: 40px;
+        margin: 0 auto;
+        width: calc(100% - 40px);
+        padding: 16px 0;
+        height: calc(100vh - 90px);
+      }
+    }
+
+    .reader.page-mode h1 {
+      break-inside: avoid;
+      break-after: avoid;
     }
 
     .notes-panel {
@@ -227,6 +261,8 @@
       line-height: 1.8;
       margin-top: 8px;
       white-space: pre-wrap;
+      text-indent: 2em;
+    }
     }
 
     .note-time {
@@ -294,6 +330,8 @@
   <div class="container">
     <div class="sidebar">
       <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">◐</button>
+      <button class="theme-toggle" onclick="openSettings()" title="API 设置" style="margin-left:8px">⚙️</button>
+      <button class="theme-toggle" onclick="openReadingSettings()" title="阅读设置" style="margin-left:8px">📖</button>
       <h2>书库</h2>
       <input type="file" id="uploadBook" accept=".epub" style="display:none" onchange="uploadBook()">
       <button class="save-btn" onclick="document.getElementById('uploadBook').click()" style="margin-bottom:12px;width:100%">+ 添加书籍</button>
@@ -311,9 +349,36 @@
     <div class="notes-panel">
       <div class="notes-header">
         <h2>笔记</h2>
-        <button class="save-btn" onclick="saveNotes()">保存</button>
+        <div style="display:flex;gap:8px;">
+          <button class="save-btn" onclick="openExportDialog()">导出</button>
+          <button class="save-btn" onclick="saveNotes()">保存</button>
+        </div>
       </div>
       <div id="notesList"></div>
+    </div>
+  </div>
+
+  <div id="settingsDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:var(--paper);padding:24px;border-radius:8px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;">
+      <h3 style="margin-bottom:16px;color:var(--ink);">API 设置</h3>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">API Key</label>
+        <input id="apiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Base URL</label>
+        <input id="apiBase" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Model</label>
+        <input id="apiModel" type="text" placeholder="gpt-3.5-turbo" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div id="testResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:nowrap;">
+        <button class="menu-btn" onclick="testApi()" style="white-space:nowrap;margin-right:auto;">测试连接</button>
+        <button class="menu-btn" onclick="closeSettings()" style="white-space:nowrap;">取消</button>
+        <button class="save-btn" onclick="saveSettings()" style="white-space:nowrap;">保存</button>
+      </div>
     </div>
   </div>
 
@@ -325,12 +390,62 @@
   </div>
 
   <div id="inputDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
-    <div style="background:var(--paper);padding:24px;border-radius:8px;width:400px;max-width:90%;">
-      <h3 style="margin-bottom:16px;color:var(--ink);" id="dialogTitle">输入内容</h3>
-      <textarea id="dialogInput" style="width:100%;min-height:100px;padding:12px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);resize:vertical;"></textarea>
-      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
-        <button class="menu-btn" onclick="closeDialog()">取消</button>
-        <button class="save-btn" onclick="submitDialog()">确定</button>
+    <div style="background:var(--paper);padding:20px;border-radius:8px;width:400px;max-width:90%;box-sizing:border-box;">
+      <h3 style="margin:0 0 12px 0;color:var(--ink);font-size:18px;font-weight:600;" id="dialogTitle">输入内容</h3>
+      <textarea id="dialogInput" style="width:100%;min-height:100px;padding:12px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);resize:vertical;box-sizing:border-box;font-size:14px;line-height:1.5;" autofocus></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;flex-wrap:nowrap;">
+        <button class="menu-btn" onclick="closeDialog()" style="white-space:nowrap;">取消</button>
+        <button class="save-btn" onclick="submitDialog()" style="white-space:nowrap;">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:var(--paper);padding:24px;border-radius:8px;width:400px;max-width:90%;box-sizing:border-box;">
+      <h3 style="margin:0 0 16px 0;color:var(--ink);font-size:18px;font-weight:600;">导出笔记</h3>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:8px;color:var(--ink-fade);font-size:13px;">格式</label>
+        <select id="exportFormat" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+          <option value="md">Markdown (.md)</option>
+          <option value="html">HTML (.html)</option>
+          <option value="txt">纯文本 (.txt)</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:center;color:var(--ink-fade);font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="includeContext" checked style="margin-right:8px;">
+          包含上下文
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="menu-btn" onclick="closeExportDialog()" style="white-space:nowrap;">取消</button>
+        <button class="save-btn" onclick="exportNotes()" style="white-space:nowrap;">导出</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="readingSettingsDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:var(--paper);padding:24px;border-radius:8px;width:400px;max-width:90%;box-sizing:border-box;">
+      <h3 style="margin:0 0 16px 0;color:var(--ink);font-size:18px;font-weight:600;">阅读设置</h3>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:8px;color:var(--ink-fade);font-size:13px;">翻页方式</label>
+        <select id="pageMode" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+          <option value="scroll">向下滚动</option>
+          <option value="click">点击翻页</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:8px;color:var(--ink-fade);font-size:13px;">字体</label>
+        <select id="fontFamily" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+          <option value="'Noto Serif SC', 'Merriweather', serif">思源宋体（默认）</option>
+          <option value="'LXGW WenKai', 'Noto Serif SC', serif">霞鹜文楷</option>
+          <option value="'Songti SC', 'SimSun', serif">宋体</option>
+          <option value="'Kaiti SC', 'KaiTi', serif">楷体</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="menu-btn" onclick="closeReadingSettings()" style="white-space:nowrap;">取消</button>
+        <button class="save-btn" onclick="saveReadingSettings()" style="white-space:nowrap;">保存</button>
       </div>
     </div>
   </div>
@@ -345,7 +460,162 @@
     let selectedRange = null;
     let progress = {};
     let bookmarks = {};
+    let allNotes = {};
     let dialogResolve = null;
+    let userApiConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
+    let readingSettings = JSON.parse(localStorage.getItem('readingSettings') || '{"pageMode":"scroll","fontFamily":"\'Noto Serif SC\', \'Merriweather\', serif"}');
+
+    function applyReadingSettings() {
+      const reader = document.getElementById('reader');
+      if (!reader) return;
+      reader.style.fontFamily = readingSettings.fontFamily;
+
+      if (readingSettings.pageMode === 'scroll') {
+        reader.classList.remove('page-mode');
+      } else {
+        reader.classList.add('page-mode');
+      }
+    }
+
+    function setupPageMode() {
+      const reader = document.getElementById('reader');
+      applyReadingSettings();
+
+      reader.removeEventListener('click', handleClickPage);
+
+      if (readingSettings.pageMode === 'click') {
+        reader.addEventListener('click', handleClickPage);
+      }
+    }
+
+    function getPageStep(reader) {
+      // 读取浏览器实际渲染的列宽，步进 = (列宽 + gap) * 2
+      const style = getComputedStyle(reader);
+      const gap = parseFloat(style.columnGap) || 80;
+      const colWidth = (reader.clientWidth - gap) / 2;
+      return (colWidth + gap) * 2;
+    }
+
+    function handleClickPage(e) {
+      if (e.target.closest('#highlightMenu')) return;
+      if (window.getSelection().toString().length > 0) return;
+
+      const reader = document.getElementById('reader');
+      const rect = reader.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const step = getPageStep(reader);
+      const maxScroll = reader.scrollWidth - reader.clientWidth;
+      const currentPage = Math.round(reader.scrollLeft / step);
+
+      if (clickX > rect.width * 0.5) {
+        const next = (currentPage + 1) * step;
+        if (next > maxScroll + 10) {
+          if (currentChapter.index < window.chapters.length - 1)
+            loadChapter(currentChapter.index + 1, window.chapters[currentChapter.index + 1].title);
+        } else {
+          reader.scrollTo({ left: Math.min(next, maxScroll), behavior: 'smooth' });
+        }
+      } else {
+        if (currentPage <= 0) {
+          if (currentChapter.index > 0) {
+            loadChapter(currentChapter.index - 1, window.chapters[currentChapter.index - 1].title);
+            setTimeout(() => { reader.scrollLeft = reader.scrollWidth; }, 100);
+          }
+        } else {
+          reader.scrollTo({ left: (currentPage - 1) * step, behavior: 'smooth' });
+        }
+      }
+    }
+
+    function openReadingSettings() {
+      document.getElementById('pageMode').value = readingSettings.pageMode;
+      document.getElementById('fontFamily').value = readingSettings.fontFamily;
+      document.getElementById('readingSettingsDialog').style.display = 'flex';
+    }
+
+    function closeReadingSettings() {
+      document.getElementById('readingSettingsDialog').style.display = 'none';
+    }
+
+    function saveReadingSettings() {
+      readingSettings = {
+        pageMode: document.getElementById('pageMode').value,
+        fontFamily: document.getElementById('fontFamily').value
+      };
+      localStorage.setItem('readingSettings', JSON.stringify(readingSettings));
+      applyReadingSettings();
+      closeReadingSettings();
+      if (currentChapter) setupPageMode();
+    }
+
+    function openSettings() {
+      document.getElementById('apiKey').value = userApiConfig.apiKey || '';
+      document.getElementById('apiBase').value = userApiConfig.baseUrl || '';
+      document.getElementById('apiModel').value = userApiConfig.model || '';
+      document.getElementById('settingsDialog').style.display = 'flex';
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsDialog').style.display = 'none';
+    }
+
+    function saveSettings() {
+      userApiConfig = {
+        apiKey: document.getElementById('apiKey').value,
+        baseUrl: document.getElementById('apiBase').value,
+        model: document.getElementById('apiModel').value
+      };
+      localStorage.setItem('apiConfig', JSON.stringify(userApiConfig));
+      closeSettings();
+      alert('设置已保存');
+    }
+
+    async function testApi() {
+      const apiKey = document.getElementById('apiKey').value;
+      const baseUrl = document.getElementById('apiBase').value;
+      const model = document.getElementById('apiModel').value;
+
+      if (!apiKey) {
+        showTestResult('请输入 API Key', false);
+        return;
+      }
+
+      const testResult = document.getElementById('testResult');
+      testResult.style.display = 'block';
+      testResult.style.background = 'var(--accent-soft)';
+      testResult.style.color = 'var(--ink)';
+      testResult.textContent = '正在测试连接...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            apiKey,
+            baseUrl: baseUrl || 'https://api.openai.com/v1',
+            model: model || 'gpt-3.5-turbo'
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showTestResult('✓ 连接成功！API 可用', true);
+        } else {
+          showTestResult(`✗ 连接失败: ${data.error}`, false);
+        }
+      } catch (error) {
+        showTestResult('✗ 连接失败: 网络错误', false);
+      }
+    }
+
+    function showTestResult(message, success) {
+      const testResult = document.getElementById('testResult');
+      testResult.style.display = 'block';
+      testResult.style.background = success ? 'oklch(92% 0.08 140)' : 'oklch(92% 0.08 30)';
+      testResult.style.color = success ? 'oklch(35% 0.12 140)' : 'oklch(45% 0.12 30)';
+      testResult.textContent = message;
+    }
 
     function showDialog(title, placeholder = '') {
       return new Promise(resolve => {
@@ -384,14 +654,20 @@
       const data = await res.json();
       progress = data.progress || {};
       bookmarks = data.bookmarks || {};
+      allNotes = data.allNotes || {};
     }
 
     async function saveProgress() {
       await fetch(`${API_BASE}/api/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ progress, bookmarks })
+        body: JSON.stringify({ progress, bookmarks, allNotes })
       });
+    }
+
+    function persistNotes() {
+      if (currentBook) allNotes[currentBook.name] = notes;
+      saveProgress();
     }
 
     async function loadBooks() {
@@ -426,6 +702,9 @@
       ).join('');
       window.chapters = chapters;
 
+      notes = allNotes[bookName] || [];
+      renderNotes();
+
       const bookBookmarks = bookmarks[bookName] || [];
       if (bookBookmarks.length > 0) {
         const latest = bookBookmarks[bookBookmarks.length - 1];
@@ -438,12 +717,25 @@
     function loadChapter(index, title) {
       currentChapter = { index, title };
       const chapter = window.chapters[index];
-      const paragraphs = chapter.text.split('\n\n')
-        .map((p, i) => `<p data-para="${i}" onclick="toggleBookmark(${i})">${p}</p>`)
+
+      let htmlText = chapter.text;
+
+      // 在当前章节的文本中还原高亮
+      const chapterNotes = notes.filter(n => n.chapterTitle === title);
+      chapterNotes.forEach(note => {
+        const textToFind = note.highlightedText;
+        const replaceWith = `<span class="highlight" data-note-id="${note.id}">${textToFind}</span>`;
+        // 只替换第一次出现的匹配内容（防止有重复内容全部替换）
+        htmlText = htmlText.replace(textToFind, replaceWith);
+      });
+
+      const paragraphs = htmlText.split('\n\n')
+        .map((p, i) => `<p data-para="${i}" onmousedown="startBookmarkTimer(${i})" onmouseup="clearBookmarkTimer()" ontouchstart="startBookmarkTimer(${i})" ontouchend="clearBookmarkTimer()">${p}</p>`)
         .join('');
       document.getElementById('reader').innerHTML = `<h1>${title}</h1>${paragraphs}`;
       document.querySelectorAll('.chapter-item').forEach((el, i) => el.classList.toggle('active', i === index));
       enableTextSelection();
+      setupPageMode();
 
       const bookBookmarks = bookmarks[currentBook.name] || [];
       const chapterBookmarks = bookBookmarks.filter(b => b.chapter === index);
@@ -459,6 +751,14 @@
           if (para) para.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
       }
+    }
+
+    let bookmarkTimer = null;
+    function startBookmarkTimer(paraIndex) {
+      bookmarkTimer = setTimeout(() => toggleBookmark(paraIndex), 500);
+    }
+    function clearBookmarkTimer() {
+      clearTimeout(bookmarkTimer);
     }
 
     function toggleBookmark(paraIndex) {
@@ -503,12 +803,16 @@
       document.addEventListener('click', (e) => {
         if (!e.target.closest('#highlightMenu') && !e.target.closest('.reader')) {
           document.getElementById('highlightMenu').style.display = 'none';
+          window.getSelection().removeAllRanges();
         }
       });
     }
 
     async function handleHighlight(type) {
       document.getElementById('highlightMenu').style.display = 'none';
+
+      const parentPara = selectedRange.startContainer.parentElement.closest('p');
+      const paragraphText = parentPara ? parentPara.textContent : '';
 
       const span = document.createElement('span');
       span.className = 'highlight';
@@ -521,6 +825,7 @@
         id: span.dataset.noteId,
         chapterTitle: currentChapter.title,
         highlightedText: selectedText,
+        contextText: paragraphText,
         aiComment: '',
         timestamp: new Date().toLocaleString('zh-CN')
       };
@@ -529,34 +834,20 @@
         const comment = await showDialog('写下你的想法');
         if (comment) note.aiComment = comment;
       } else if (type === 'ai') {
-        note.aiComment = '正在思考…';
-        notes.unshift(note);
-        renderNotes();
-
-        const text = window.chapters[currentChapter.index].text;
-        const pos = text.indexOf(selectedText);
-        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
-
-        const res = await fetch(`${API_BASE}/api/ai/comment`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookTitle: currentBook.name,
-            chapterTitle: currentChapter.title,
-            highlightedText: selectedText,
-            surroundingText: surrounding,
-            previousInsights: notes.slice(1).map(n => n.aiComment)
-          })
-        });
-        const data = await res.json();
-        notes[0].aiComment = data.comment;
+        if (!userApiConfig.apiKey) {
+          alert('请先在设置中配置 API Key');
+          return;
+        }
+        note.aiComment = '[点击"继续讨论"获取 AI 评论]';
+        note.pendingAI = true;
       } else if (type === 'discuss') {
         const question = await showDialog('你想讨论什么？');
         if (question) note.aiComment = `${question}\n\n正在回复…`;
       }
 
-      if (type !== 'ai') notes.unshift(note);
+      notes.unshift(note);
       renderNotes();
+      persistNotes();
       window.getSelection().removeAllRanges();
     }
 
@@ -564,11 +855,39 @@
       document.getElementById('notesList').innerHTML = notes.map((note, index) => `
         <div class="note-card">
           <button class="delete-btn" onclick="deleteNote(${index})" title="删除">×</button>
-          <div class="note-highlight">"${note.highlightedText.slice(0, 80)}${note.highlightedText.length > 80 ? '…' : ''}"</div>
+          <div class="note-highlight" onclick="locateHighlight('${note.id}')" style="cursor:pointer;" title="定位到原文">"${note.highlightedText.slice(0, 80)}${note.highlightedText.length > 80 ? '…' : ''}"</div>
           ${note.aiComment ? `<div class="note-comment">${note.aiComment}</div>` : ''}
+          ${note.aiComment && !note.aiComment.includes('正在') ? `<button class="menu-btn" onclick="continueDiscussion(${index})" style="margin-top:8px;padding:6px 12px;font-size:12px;">💬 继续讨论</button>` : ''}
           <div class="note-time">${note.timestamp}</div>
         </div>
       `).join('');
+    }
+
+    function locateHighlight(noteId) {
+      const note = notes.find(n => n.id === noteId);
+      if (!note) return;
+
+      if (currentChapter && currentChapter.title === note.chapterTitle) {
+        scrollToHighlight(noteId);
+      } else {
+        const chapterIdx = window.chapters.findIndex(ch => ch.title === note.chapterTitle);
+        if (chapterIdx >= 0) {
+          loadChapter(chapterIdx, note.chapterTitle);
+          // 等待 DOM 渲染后再滚动
+          setTimeout(() => scrollToHighlight(noteId), 150);
+        }
+      }
+    }
+
+    function scrollToHighlight(noteId) {
+      const highlight = document.querySelector(`[data-note-id="${noteId}"]`);
+      if (highlight) {
+        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlight.style.transition = 'background 0.3s';
+        const originalBg = highlight.style.background;
+        highlight.style.background = 'var(--accent)';
+        setTimeout(() => highlight.style.background = originalBg, 1200);
+      }
     }
 
     function deleteNote(index) {
@@ -583,6 +902,53 @@
         });
         notes.splice(index, 1);
         renderNotes();
+        persistNotes();
+      }
+    }
+
+    async function continueDiscussion(index) {
+      if (!userApiConfig.apiKey) {
+        alert('请先在设置中配置 API Key');
+        return;
+      }
+
+      const note = notes[index];
+      const question = await showDialog(note.pendingAI ? 'AI 会为你评论这段文本' : '继续讨论什么？', note.pendingAI ? '' : '输入你的问题或想法');
+
+      if (note.pendingAI || question) {
+        const originalComment = note.aiComment;
+        note.aiComment = originalComment + '\n\n正在思考…';
+        renderNotes();
+
+        const text = window.chapters[currentChapter.index].text;
+        const pos = text.indexOf(note.highlightedText);
+        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+
+        const conversationHistory = note.pendingAI ? [] : [{ role: 'assistant', content: originalComment }, { role: 'user', content: question }];
+
+        const res = await fetch(`${API_BASE}/api/ai/comment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookTitle: currentBook.name,
+            chapterTitle: note.chapterTitle,
+            highlightedText: note.highlightedText,
+            surroundingText: surrounding,
+            previousInsights: [],
+            conversationHistory,
+            userApiConfig
+          })
+        });
+        const data = await res.json();
+
+        if (note.pendingAI) {
+          note.aiComment = data.comment;
+          delete note.pendingAI;
+        } else {
+          note.aiComment = originalComment + '\n\n> ' + question + '\n\n' + data.comment;
+        }
+        renderNotes();
+        persistNotes();
       }
     }
 
@@ -595,6 +961,94 @@
       alert('已保存至 Obsidian');
     }
 
+    function openExportDialog() {
+      if (!currentBook || notes.length === 0) {
+        alert('暂无笔记可导出');
+        return;
+      }
+      document.getElementById('exportDialog').style.display = 'flex';
+    }
+
+    function closeExportDialog() {
+      document.getElementById('exportDialog').style.display = 'none';
+    }
+
+    function exportNotes() {
+      const format = document.getElementById('exportFormat').value;
+      const includeContext = document.getElementById('includeContext').checked;
+
+      let content = '';
+      const bookTitle = currentBook.name;
+      const timestamp = new Date().toLocaleString('zh-CN');
+
+      if (format === 'md') {
+        content = `# ${bookTitle}\n\n> 导出时间：${timestamp}\n\n`;
+        notes.forEach(note => {
+          content += `## ${note.chapterTitle}\n\n`;
+          if (includeContext && note.contextText) {
+            content += `**上下文：**\n> ...${note.contextText}...\n\n`;
+          }
+          content += `**划线原文：**\n> ${note.highlightedText}\n\n`;
+          if (note.aiComment) {
+            content += `**评论/笔记：**\n${note.aiComment.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
+          }
+          content += `*${note.timestamp}*\n\n---\n\n`;
+        });
+      } else if (format === 'html') {
+        content = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>${bookTitle} - 阅读笔记</title>
+  <style>
+    body { font-family: 'Noto Serif SC', serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.8; color: #2d3436; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    .note { margin: 30px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #0984e3; border-radius: 4px; }
+    .context { color: #636e72; font-style: italic; font-size: 0.95em; margin-bottom: 12px; padding: 8px; background: #f1f2f6; border-radius: 4px; }
+    .highlight { color: #d63031; font-weight: 600; margin-bottom: 15px; border-bottom: 1px dashed #d63031; display: inline-block; }
+    .comment { margin-left: 30px; color: #2d3436; white-space: pre-wrap; border-left: 3px solid #dfe6e9; padding-left: 15px; margin-top: 15px; }
+    .time { color: #b2bec3; font-size: 0.85em; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h1>${bookTitle}</h1>
+  <p style="color:#b2bec3;">导出时间：${timestamp}</p>
+`;
+        notes.forEach(note => {
+          content += `  <div class="note">
+    <h2>${note.chapterTitle}</h2>
+    ${includeContext && note.contextText ? `<div class="context">...${note.contextText}...</div>` : ''}
+    <div class="highlight">"${note.highlightedText}"</div>
+    ${note.aiComment ? `<div class="comment">${note.aiComment}</div>` : ''}
+    <div class="time">${note.timestamp}</div>
+  </div>\n`;
+        });
+        content += `</body>\n</html>`;
+      } else if (format === 'txt') {
+        content = `${bookTitle}\n导出时间：${timestamp}\n\n${'=' .repeat(50)}\n\n`;
+        notes.forEach(note => {
+          content += `${note.chapterTitle}\n\n`;
+          if (includeContext && note.contextText) {
+            content += `[上下文]：...${note.contextText}...\n\n`;
+          }
+          content += `[划线原文]：${note.highlightedText}\n\n`;
+          if (note.aiComment) {
+            content += `[评论/笔记]：\n${note.aiComment.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
+          }
+          content += `时间：${note.timestamp}\n\n${'-' .repeat(50)}\n\n`;
+        });
+      }
+
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${bookTitle}-笔记.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      closeExportDialog();
+    }
+
     function toggleTheme() {
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
@@ -604,6 +1058,7 @@
       document.body.classList.add('dark');
     }
 
+    applyReadingSettings();
     loadProgress().then(loadBooks);
   </script>
 </body>

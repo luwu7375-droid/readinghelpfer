@@ -94,19 +94,75 @@ app.get('/api/progress', async (req, res) => {
   }
 });
 
+// 测试 API 连接
+app.post('/api/ai/test', async (req, res) => {
+  const { apiKey, baseUrl, model } = req.body;
+
+  if (!apiKey) {
+    return res.status(400).json({ error: '缺少 API Key' });
+  }
+
+  try {
+    const testAI = new AIClient(apiKey, baseUrl, apiKey, baseUrl);
+    const testPipeline = new ReadingPipeline(testAI, model, model);
+
+    await testPipeline.generateComment({
+      bookOutline: 'Test',
+      chapterSummary: 'Test',
+      highlightedText: 'Hello',
+      surroundingText: 'Hello world',
+      previousInsights: []
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'API 调用失败' });
+  }
+});
+
 // AI 生成评论
 app.post('/api/ai/comment', async (req, res) => {
-  const { bookTitle, chapterTitle, highlightedText, surroundingText, previousInsights } = req.body;
+  const { bookTitle, chapterTitle, highlightedText, surroundingText, previousInsights, conversationHistory, userApiConfig } = req.body;
 
-  const comment = await pipeline.generateComment({
-    bookOutline: bookTitle,
-    chapterSummary: chapterTitle,
-    highlightedText,
-    surroundingText,
-    previousInsights: previousInsights || []
-  });
+  if (!userApiConfig?.apiKey) {
+    return res.status(400).json({ error: '未配置 API Key' });
+  }
 
-  res.json({ comment });
+  try {
+    const userAI = new AIClient(
+      userApiConfig.apiKey,
+      userApiConfig.baseUrl || 'https://api.openai.com/v1',
+      userApiConfig.apiKey,
+      userApiConfig.baseUrl || 'https://api.openai.com/v1'
+    );
+
+    let comment: string;
+
+    if (conversationHistory && conversationHistory.length > 0) {
+      const lastUserMsg = conversationHistory[conversationHistory.length - 1];
+      const prompt = `基于之前的对话，回��读者的追问：\n\n${lastUserMsg.content}`;
+      comment = await userAI.complete(userApiConfig.model || 'gpt-4', prompt, true);
+    } else {
+      const userPipeline = new ReadingPipeline(
+        userAI,
+        userApiConfig.model || 'gpt-3.5-turbo',
+        userApiConfig.model || 'gpt-4'
+      );
+
+      comment = await userPipeline.generateComment({
+        bookOutline: bookTitle,
+        chapterSummary: chapterTitle,
+        highlightedText,
+        surroundingText,
+        previousInsights: previousInsights || []
+      });
+    }
+
+    res.json({ comment });
+  } catch (error) {
+    console.error('AI comment error:', error);
+    res.status(500).json({ error: 'AI 调用失败，请检查 API 配置' });
+  }
 });
 
 // 保存笔记
