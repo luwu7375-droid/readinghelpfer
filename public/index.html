@@ -729,7 +729,7 @@
       testResult.textContent = '正在测试连接...';
 
       try {
-        const res = await fetch(`${API_BASE}/api/ai/test`, {
+        const res = await authFetch(`${API_BASE}/api/ai/test`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
