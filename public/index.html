@@ -50,6 +50,7 @@
       padding: 32px 20px;
       overflow-y: auto;
       border-right: 1px solid var(--divider);
+      position: relative;
     }
 
     .main { flex: 1; display: flex; flex-direction: column; }
@@ -355,6 +356,210 @@
       font-size: 14px;
       font-style: italic;
     }
+
+    /* ─── 移动端适配 ─────────────────────────────────── */
+
+    /* 顶部导航栏（移动端专用，桌面默认隐藏） */
+    .mobile-topbar {
+      display: none;
+    }
+
+    /* 抽屉遮罩 */
+    .drawer-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 400;
+    }
+    .drawer-mask.active { display: block; }
+
+    @media (max-width: 768px) {
+
+      /* 顶部栏 */
+      .mobile-topbar {
+        display: flex;
+        align-items: center;
+        height: 48px;
+        padding: 0 12px;
+        background: var(--paper);
+        border-bottom: 1px solid var(--divider);
+        position: sticky;
+        top: 0;
+        z-index: 300;
+        gap: 8px;
+      }
+      .mobile-topbar .tb-btn {
+        background: none;
+        border: none;
+        color: var(--ink);
+        font-size: 22px;
+        cursor: pointer;
+        padding: 6px 8px;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        font-family: inherit;
+      }
+      .mobile-topbar .tb-btn:active { background: var(--accent-soft); }
+      .mobile-topbar .tb-title {
+        flex: 1;
+        text-align: center;
+        font-size: 15px;
+        color: var(--ink);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      /* 三栏布局改为单列 */
+      .container {
+        display: block;
+        height: auto;
+      }
+
+      /* sidebar → 左侧抽屉 */
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 80vw;
+        max-width: 320px;
+        z-index: 500;
+        transform: translateX(-100%);
+        transition: transform 0.28s ease;
+        overflow-y: auto;
+        border-right: 1px solid var(--divider);
+        padding: 24px 16px;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      }
+      .sidebar.open { transform: translateX(0); }
+
+      /* notes-panel → 右侧抽屉 */
+      .notes-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 92vw;
+        max-width: 380px;
+        z-index: 500;
+        transform: translateX(100%);
+        transition: transform 0.28s ease;
+        overflow-y: auto;
+        border-left: 1px solid var(--divider);
+        padding: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .notes-panel.open { transform: translateX(0); }
+
+      /* 笔记面板顶部固定操作栏 */
+      .notes-header {
+        position: sticky;
+        top: 0;
+        background: var(--paper);
+        padding: 12px 16px;
+        z-index: 10;
+        border-bottom: 1px solid var(--divider);
+      }
+
+      /* 笔记列表区域内边距 */
+      #notesList {
+        padding: 12px 16px;
+      }
+
+      /* main 区域撑满 */
+      .main {
+        display: block;
+        min-height: 100dvh;
+      }
+
+      /* reader：全宽，滚动模式，字号适配 */
+      .reader {
+        padding: 24px 16px 80px;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+        max-width: 100%;
+        font-size: 17px;
+        line-height: 1.9;
+        overflow-y: auto;
+        min-height: calc(100dvh - 48px);
+      }
+
+      /* 移动端强制关闭翻页模式，防止横排变竖排 */
+      .reader.page-mode {
+        column-count: unset !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        height: auto !important;
+        width: 100% !important;
+        padding: 24px 16px 80px !important;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+      }
+
+      /* 高亮菜单 → 底部 sheet（移动端） */
+      .highlight-menu {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        border-radius: 16px 16px 0 0;
+        padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
+        display: flex !important;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        box-shadow: 0 -4px 24px var(--shadow);
+        z-index: 600;
+        /* 默认隐藏在屏幕底部外 */
+        transform: translateY(110%);
+        transition: transform 0.25s ease;
+      }
+      .highlight-menu.mobile-visible {
+        transform: translateY(0) !important;
+      }
+      .highlight-menu .menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        min-width: 80px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        width: auto;
+        text-align: center;
+      }
+
+      /* 弹窗适配 */
+      #settingsDialog > div,
+      #inputDialog > div,
+      #exportDialog > div,
+      #readingSettingsDialog > div {
+        width: 92vw !important;
+        max-height: 85dvh !important;
+        overflow-y: auto !important;
+      }
+
+      /* 笔记卡片宽度适配 */
+      .note-card {
+        padding: 14px 12px;
+      }
+
+      /* 登录弹窗适配 */
+      #authOverlay > div {
+        width: 92vw !important;
+        padding: 24px 16px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -377,8 +582,20 @@
       </div>
     </div>
   </div>
+  <!-- 移动端顶部导航栏 -->
+  <div class="mobile-topbar" id="mobileTopbar">
+    <button class="tb-btn" onclick="openSidebar()" title="书库">☰</button>
+    <span class="tb-title" id="mobileTitle">阅读助手</span>
+    <button class="tb-btn" onclick="openNotesPanel()" title="笔记">📝</button>
+  </div>
+
+  <!-- 抽屉遮罩 -->
+  <div class="drawer-mask" id="drawerMask" onclick="closeAllDrawers()"></div>
+
   <div class="container">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
+      <!-- 移动端关闭按钮（桌面端靠 display:none 隐藏） -->
+      <button id="sidebarCloseBtn" onclick="closeSidebar()" style="display:none;position:absolute;top:12px;right:12px;background:none;border:none;color:var(--ink-fade);font-size:22px;cursor:pointer;padding:4px;line-height:1;">×</button>
       <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">◐</button>
       <button class="theme-toggle" onclick="openSettings()" title="API 设置" style="margin-left:8px">⚙️</button>
       <button class="theme-toggle" onclick="openReadingSettings()" title="阅读设置" style="margin-left:8px">📖</button>
@@ -397,12 +614,13 @@
       </div>
     </div>
 
-    <div class="notes-panel">
+    <div class="notes-panel" id="notesPanel">
       <div class="notes-header">
         <h2>笔记</h2>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
           <button class="save-btn" onclick="openExportDialog()">导出</button>
           <button class="save-btn" onclick="saveNotes()">保存</button>
+          <button id="notesPanelCloseBtn" onclick="closeNotesPanel()" style="display:none;background:none;border:none;color:var(--ink-fade);font-size:22px;cursor:pointer;padding:4px;line-height:1;margin-left:4px;">×</button>
         </div>
       </div>
       <div id="notesList"></div>
@@ -517,6 +735,51 @@
 
   <script>
     const API_BASE = window.location.origin;
+
+    /* ─── 移动端工具函数 ─────────────────────────────── */
+    function isMobile() { return window.innerWidth <= 768; }
+
+    function openSidebar() {
+      document.getElementById('sidebar').classList.add('open');
+      document.getElementById('drawerMask').classList.add('active');
+      document.getElementById('sidebarCloseBtn').style.display = 'block';
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      const mask = document.getElementById('drawerMask');
+      if (!document.getElementById('notesPanel').classList.contains('open')) {
+        mask.classList.remove('active');
+      }
+      document.getElementById('sidebarCloseBtn').style.display = 'none';
+    }
+    function openNotesPanel() {
+      document.getElementById('notesPanel').classList.add('open');
+      document.getElementById('drawerMask').classList.add('active');
+      document.getElementById('notesPanelCloseBtn').style.display = 'inline-flex';
+    }
+    function closeNotesPanel() {
+      document.getElementById('notesPanel').classList.remove('open');
+      const mask = document.getElementById('drawerMask');
+      if (!document.getElementById('sidebar').classList.contains('open')) {
+        mask.classList.remove('active');
+      }
+      document.getElementById('notesPanelCloseBtn').style.display = 'none';
+    }
+    function closeAllDrawers() {
+      closeSidebar();
+      closeNotesPanel();
+      document.getElementById('drawerMask').classList.remove('active');
+    }
+
+    // 章节加载时关闭 sidebar 并更新顶栏书名
+    function mobileOnChapterLoad(bookName, chapterTitle) {
+      if (isMobile()) {
+        closeSidebar();
+        const titleEl = document.getElementById('mobileTitle');
+        if (titleEl) titleEl.textContent = chapterTitle || bookName || '阅读助手';
+      }
+    }
+    /* ─────────────────────────────────────────────────── */
 
     let authToken = localStorage.getItem('authToken');
     let currentUserId = localStorage.getItem('currentUserId');
@@ -941,6 +1204,7 @@
       document.querySelectorAll('.chapter-item').forEach((el, i) => el.classList.toggle('active', i === index));
       enableTextSelection();
       setupPageMode();
+      mobileOnChapterLoad(currentBook ? currentBook.name : '', title);
 
       const bookBookmarks = bookmarks[currentBook.name] || [];
       const chapterBookmarks = bookBookmarks.filter(b => b.chapter === index);
@@ -991,31 +1255,48 @@
       if (textSelectionInitialized) return;
       textSelectionInitialized = true;
 
-      document.addEventListener('mouseup', (e) => {
+      function showHighlightMenu(e) {
         const selection = window.getSelection();
         selectedText = selection.toString().trim();
         if (selectedText.length > 5 && e.target.closest('#reader')) {
           selectedRange = selection.getRangeAt(0);
           const menu = document.getElementById('highlightMenu');
-          menu.style.display = 'block';
-          menu.style.left = e.pageX + 'px';
-          menu.style.top = (e.pageY + 20) + 'px';
-          // 阻止本次 mouseup 对应的 click 事件关掉菜单
+          if (isMobile()) {
+            // 底部 sheet 模式
+            menu.classList.add('mobile-visible');
+          } else {
+            menu.style.display = 'block';
+            const pageX = e.pageX !== undefined ? e.pageX : (e.changedTouches ? e.changedTouches[0].pageX : 0);
+            const pageY = e.pageY !== undefined ? e.pageY : (e.changedTouches ? e.changedTouches[0].pageY : 0);
+            menu.style.left = pageX + 'px';
+            menu.style.top = (pageY + 20) + 'px';
+          }
           menu._justOpened = true;
         }
+      }
+
+      document.addEventListener('mouseup', showHighlightMenu);
+      // 移动端 touchend 支持划词
+      document.addEventListener('touchend', (e) => {
+        // 延迟一帧让浏览器更新 selection
+        setTimeout(() => showHighlightMenu(e), 80);
       });
 
       document.addEventListener('click', (e) => {
         const menu = document.getElementById('highlightMenu');
         if (menu._justOpened) { menu._justOpened = false; return; }
         if (e.target.closest('#highlightMenu') || e.target.closest('#inputDialog')) return;
+        menu.classList.remove('mobile-visible');
         menu.style.display = 'none';
         window.getSelection().removeAllRanges();
       });
     }
 
+
     async function handleHighlight(type) {
-      document.getElementById('highlightMenu').style.display = 'none';
+      const menu = document.getElementById('highlightMenu');
+      menu.classList.remove('mobile-visible');
+      menu.style.display = 'none';
 
       // 书签：找到选区所在段落，切换书签后返回
       if (type === 'bookmark') {
@@ -1408,6 +1689,20 @@
     }
 
     applyReadingSettings();
+
+    // 移动端初始化：显示关闭按钮
+    (function initMobile() {
+      if (!isMobile()) return;
+      document.getElementById('sidebarCloseBtn').style.display = 'none'; // 只在抽屉打开后再显示
+      // 阅读设置保存时，移动端强制 scroll 模式（防止翻页模式破坏正文方向）
+      const origSaveRS = saveReadingSettings;
+      saveReadingSettings = function() {
+        origSaveRS();
+        const reader = document.getElementById('reader');
+        if (reader) reader.classList.remove('page-mode');
+      };
+    })();
+
     if (authToken) {
       // 如果 currentUserId 丢失（旧 session），从服务器补取再继续
       if (!currentUserId) {
