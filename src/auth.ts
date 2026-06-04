@@ -2,7 +2,13 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
+const DEFAULT_SECRET = 'default-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_SECRET;
+
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_SECRET)) {
+  console.error('FATAL: JWT_SECRET must be set to a strong random value in production');
+  process.exit(1);
+}
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);

@@ -40,7 +40,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 app.get('/api/user/profile', authMiddleware, async (req, res) => {
   const user = db.getUserById((req as any).userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ email: user.email });
+  res.json({ email: user.email, userId: user.id });
 });
 
 app.put('/api/user/profile', authMiddleware, async (req, res) => {
@@ -54,7 +54,11 @@ app.get('/api/books', authMiddleware, async (req, res) => {
 app.post('/api/books/upload', authMiddleware, upload.single('file'), validateFileUpload, checkBookLimit, async (req, res) => {
   const userId = (req as any).userId;
   const file = (req as any).file;
-  const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+  const rawName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+  const originalName = path.basename(rawName).replace(/[/\\]/g, '');
+  if (!originalName || originalName.includes('..')) {
+    return res.status(400).json({ error: 'Invalid filename' });
+  }
   const userBooksDir = path.join(process.cwd(), 'data', 'books', String(userId));
   await fs.mkdir(userBooksDir, { recursive: true });
   await fs.rename(file.path, path.join(userBooksDir, originalName));
@@ -62,16 +66,30 @@ app.post('/api/books/upload', authMiddleware, upload.single('file'), validateFil
   res.json({ success: true });
 });
 
+function sanitizeFilename(rawParam: string): string | null {
+  // 拒绝任何包含路径分隔符或 .. 的参数（解码前后都检查）
+  if (/[/\\]|\.\./.test(rawParam)) return null;
+  const decoded = decodeURIComponent(rawParam);
+  if (/[/\\]|\.\./.test(decoded)) return null;
+  const base = path.basename(decoded);
+  if (!base) return null;
+  return base;
+}
+
 app.get('/api/books/:filename/chapters', authMiddleware, async (req, res) => {
-  const bookPath = path.join(process.cwd(), 'data', 'books', String((req as any).userId), req.params.filename);
+  const filename = sanitizeFilename(req.params.filename);
+  if (!filename) return res.status(400).json({ error: 'Invalid filename' });
+  const bookPath = path.join(process.cwd(), 'data', 'books', String((req as any).userId), filename);
   const chapters = await BookParser.parse(bookPath);
   res.json(chapters.filter(ch => ch.text.length > 2000));
 });
 
 app.delete('/api/books/:filename', authMiddleware, async (req, res) => {
   const userId = (req as any).userId;
-  await fs.unlink(path.join(process.cwd(), 'data', 'books', String(userId), req.params.filename));
-  await db.deleteBook(userId, req.params.filename);
+  const filename = sanitizeFilename(req.params.filename);
+  if (!filename) return res.status(400).json({ error: 'Invalid filename' });
+  await fs.unlink(path.join(process.cwd(), 'data', 'books', String(userId), filename));
+  await db.deleteBook(userId, filename);
   res.json({ success: true });
 });
 
@@ -84,7 +102,7 @@ app.get('/api/progress', authMiddleware, async (req, res) => {
   res.json(db.getUserData((req as any).userId));
 });
 
-app.post('/api/ai/test', async (req, res) => {
+app.post('/api/ai/test', authMiddleware, aiLimiter, async (req, res) => {
   const { apiKey, baseUrl, model } = req.body;
   if (!apiKey) return res.status(400).json({ error: '缺少 API Key' });
   try {

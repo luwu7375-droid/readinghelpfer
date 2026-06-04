@@ -2,9 +2,11 @@ import initSqlJs, { Database } from 'sql.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+const DB_PATH = process.env.DATABASE_URL || 'data/app.db';
+
 let db: Database;
 
-export async function initDB(dbPath: string = 'data/app.db') {
+export async function initDB(dbPath: string = DB_PATH) {
   const SQL = await initSqlJs();
 
   try {
@@ -63,7 +65,7 @@ export async function initDB(dbPath: string = 'data/app.db') {
   return db;
 }
 
-async function saveDB(dbPath: string) {
+async function saveDB(dbPath: string = DB_PATH) {
   const data = db.export();
   await fs.mkdir(path.dirname(dbPath), { recursive: true });
   await fs.writeFile(dbPath, data);
@@ -71,7 +73,7 @@ async function saveDB(dbPath: string) {
 
 export async function createUser(email: string, passwordHash: string) {
   db.run('INSERT INTO users (email, password_hash) VALUES (?, ?)', [email, passwordHash]);
-  await saveDB('data/app.db');
+  await saveDB();
   return db.exec('SELECT last_insert_rowid() as id')[0].values[0][0] as number;
 }
 
@@ -114,12 +116,12 @@ export async function createBook(userId: number, filename: string, originalName:
   if (exists.length > 0) return;
   db.run('INSERT INTO books (user_id, filename, original_name, size) VALUES (?, ?, ?, ?)',
     [userId, filename, originalName, size]);
-  await saveDB('data/app.db');
+  await saveDB();
 }
 
 export async function deleteBook(userId: number, filename: string) {
   db.run('DELETE FROM books WHERE user_id = ? AND filename = ?', [userId, filename]);
-  await saveDB('data/app.db');
+  await saveDB();
 }
 
 export function getProgress(userId: number, bookFilename: string) {
@@ -135,7 +137,7 @@ export function getProgress(userId: number, bookFilename: string) {
 export async function saveProgress(userId: number, bookFilename: string, chapterIndex: number, scrollPosition: number) {
   db.run(`INSERT OR REPLACE INTO reading_progress (user_id, book_filename, chapter_index, scroll_position, updated_at)
     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`, [userId, bookFilename, chapterIndex, scrollPosition]);
-  await saveDB('data/app.db');
+  await saveDB();
 }
 
 export function getUserData(userId: number): any {
@@ -146,5 +148,5 @@ export function getUserData(userId: number): any {
 
 export async function saveUserData(userId: number, data: any) {
   db.run('INSERT OR REPLACE INTO user_data (user_id, data) VALUES (?, ?)', [userId, JSON.stringify(data)]);
-  await saveDB('data/app.db');
+  await saveDB();
 }
