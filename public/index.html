@@ -50,6 +50,7 @@
       padding: 32px 20px;
       overflow-y: auto;
       border-right: 1px solid var(--divider);
+      position: relative;
     }
 
     .main { flex: 1; display: flex; flex-direction: column; }
@@ -255,15 +256,46 @@
       line-height: 1.6;
     }
 
-    .note-comment {
-      color: var(--ink-fade);
+    .note-messages {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .msg-bubble {
       font-size: 13px;
-      line-height: 1.8;
-      margin-top: 8px;
+      line-height: 1.7;
+      padding: 8px 12px;
+      border-radius: 10px;
       white-space: pre-wrap;
-      text-indent: 2em;
+      max-width: 92%;
+      word-break: break-word;
     }
+
+    .msg-user {
+      align-self: flex-end;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-bottom-right-radius: 3px;
     }
+
+    .msg-ai {
+      align-self: flex-start;
+      background: var(--divider);
+      color: var(--ink);
+      border-bottom-left-radius: 3px;
+    }
+
+    .msg-label {
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: var(--ink-lighter);
+      margin-bottom: 2px;
+    }
+
+    .msg-user-wrap { align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; max-width: 92%; }
+    .msg-ai-wrap   { align-self: flex-start; display: flex; flex-direction: column; align-items: flex-start; max-width: 92%; }
 
     .note-time {
       color: var(--ink-lighter);
@@ -324,14 +356,250 @@
       font-size: 14px;
       font-style: italic;
     }
+
+    /* ─── 移动端适配 ─────────────────────────────────── */
+
+    /* 顶部导航栏（移动端专用，桌面默认隐藏） */
+    .mobile-topbar {
+      display: none;
+    }
+
+    /* 抽屉遮罩 */
+    .drawer-mask {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 400;
+    }
+    .drawer-mask.active { display: block; }
+
+    @media (max-width: 768px) {
+
+      /* 顶部栏 */
+      .mobile-topbar {
+        display: flex;
+        align-items: center;
+        height: 48px;
+        padding: 0 12px;
+        background: var(--paper);
+        border-bottom: 1px solid var(--divider);
+        position: sticky;
+        top: 0;
+        z-index: 300;
+        gap: 8px;
+      }
+      .mobile-topbar .tb-btn {
+        background: none;
+        border: none;
+        color: var(--ink);
+        font-size: 22px;
+        cursor: pointer;
+        padding: 6px 8px;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        font-family: inherit;
+      }
+      .mobile-topbar .tb-btn:active { background: var(--accent-soft); }
+      .mobile-topbar .tb-title {
+        flex: 1;
+        text-align: center;
+        font-size: 15px;
+        color: var(--ink);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      /* 三栏布局改为单列 */
+      .container {
+        display: block;
+        height: auto;
+      }
+
+      /* sidebar → 左侧抽屉 */
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 80vw;
+        max-width: 320px;
+        z-index: 500;
+        transform: translateX(-100%);
+        transition: transform 0.28s ease;
+        overflow-y: auto;
+        border-right: 1px solid var(--divider);
+        padding: 24px 16px;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      }
+      .sidebar.open { transform: translateX(0); }
+
+      /* notes-panel → 右侧抽屉 */
+      .notes-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 92vw;
+        max-width: 380px;
+        z-index: 500;
+        transform: translateX(100%);
+        transition: transform 0.28s ease;
+        overflow-y: auto;
+        border-left: 1px solid var(--divider);
+        padding: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .notes-panel.open { transform: translateX(0); }
+
+      /* 笔记面板顶部固定操作栏 */
+      .notes-header {
+        position: sticky;
+        top: 0;
+        background: var(--paper);
+        padding: 12px 16px;
+        z-index: 10;
+        border-bottom: 1px solid var(--divider);
+      }
+
+      /* 笔记列表区域内边距 */
+      #notesList {
+        padding: 12px 16px;
+      }
+
+      /* main 区域撑满 */
+      .main {
+        display: block;
+        min-height: 100dvh;
+      }
+
+      /* reader：全宽，滚动模式，字号适配 */
+      .reader {
+        padding: 24px 16px 80px;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+        max-width: 100%;
+        font-size: 17px;
+        line-height: 1.9;
+        overflow-y: auto;
+        min-height: calc(100dvh - 48px);
+      }
+
+      /* 移动端强制关闭翻页模式，防止横排变竖排 */
+      .reader.page-mode {
+        column-count: unset !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        height: auto !important;
+        width: 100% !important;
+        padding: 24px 16px 80px !important;
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+      }
+
+      /* 高亮菜单 → 底部 sheet（移动端） */
+      .highlight-menu {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        border-radius: 16px 16px 0 0;
+        padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
+        display: flex !important;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        box-shadow: 0 -4px 24px var(--shadow);
+        z-index: 600;
+        /* 默认隐藏在屏幕底部外 */
+        transform: translateY(110%);
+        transition: transform 0.25s ease;
+      }
+      .highlight-menu.mobile-visible {
+        transform: translateY(0) !important;
+      }
+      .highlight-menu .menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        min-width: 80px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        width: auto;
+        text-align: center;
+      }
+
+      /* 弹窗适配 */
+      #settingsDialog > div,
+      #inputDialog > div,
+      #exportDialog > div,
+      #readingSettingsDialog > div {
+        width: 92vw !important;
+        max-height: 85dvh !important;
+        overflow-y: auto !important;
+      }
+
+      /* 笔记卡片宽度适配 */
+      .note-card {
+        padding: 14px 12px;
+      }
+
+      /* 登录弹窗适配 */
+      #authOverlay > div {
+        width: 92vw !important;
+        padding: 24px 16px !important;
+      }
+    }
   </style>
 </head>
 <body>
+  <div id="authOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--paper);z-index:9999;align-items:center;justify-content:center;">
+    <div style="width:360px;padding:32px;border:1px solid var(--divider);border-radius:8px;">
+      <h3 style="margin-bottom:24px;color:var(--ink);text-align:center;" id="authTitle">登录</h3>
+      <div style="margin-bottom:12px;">
+        <input id="authEmail" type="email" placeholder="邮箱" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <input id="authPassword" type="password" placeholder="密码" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div id="authInviteWrap" style="display:none;margin-bottom:16px;">
+        <input id="authInviteCode" type="text" placeholder="邀请码" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div id="authError" style="display:none;margin-bottom:12px;padding:8px;border-radius:4px;background:oklch(92% 0.08 30);color:oklch(45% 0.12 30);font-size:13px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="save-btn" onclick="submitAuth()" style="flex:1;" id="authSubmitBtn">登录</button>
+        <button class="menu-btn" onclick="toggleAuthMode()" style="flex:1;" id="authToggleBtn">注册</button>
+      </div>
+    </div>
+  </div>
+  <!-- 移动端顶部导航栏 -->
+  <div class="mobile-topbar" id="mobileTopbar">
+    <button class="tb-btn" onclick="openSidebar()" title="书库">☰</button>
+    <span class="tb-title" id="mobileTitle">阅读助手</span>
+    <button class="tb-btn" onclick="openNotesPanel()" title="笔记">📝</button>
+  </div>
+
+  <!-- 抽屉遮罩 -->
+  <div class="drawer-mask" id="drawerMask" onclick="closeAllDrawers()"></div>
+
   <div class="container">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
+      <!-- 移动端关闭按钮（桌面端靠 display:none 隐藏） -->
+      <button id="sidebarCloseBtn" onclick="closeSidebar()" style="display:none;position:absolute;top:12px;right:12px;background:none;border:none;color:var(--ink-fade);font-size:22px;cursor:pointer;padding:4px;line-height:1;">×</button>
       <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">◐</button>
       <button class="theme-toggle" onclick="openSettings()" title="API 设置" style="margin-left:8px">⚙️</button>
       <button class="theme-toggle" onclick="openReadingSettings()" title="阅读设置" style="margin-left:8px">📖</button>
+      <button class="theme-toggle" onclick="logout()" title="退出登录" style="margin-left:8px">⏻</button>
       <h2>书库</h2>
       <input type="file" id="uploadBook" accept=".epub" style="display:none" onchange="uploadBook()">
       <button class="save-btn" onclick="document.getElementById('uploadBook').click()" style="margin-bottom:12px;width:100%">+ 添加书籍</button>
@@ -346,12 +614,13 @@
       </div>
     </div>
 
-    <div class="notes-panel">
+    <div class="notes-panel" id="notesPanel">
       <div class="notes-header">
         <h2>笔记</h2>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
           <button class="save-btn" onclick="openExportDialog()">导出</button>
           <button class="save-btn" onclick="saveNotes()">保存</button>
+          <button id="notesPanelCloseBtn" onclick="closeNotesPanel()" style="display:none;background:none;border:none;color:var(--ink-fade);font-size:22px;cursor:pointer;padding:4px;line-height:1;margin-left:4px;">×</button>
         </div>
       </div>
       <div id="notesList"></div>
@@ -361,21 +630,40 @@
   <div id="settingsDialog" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
     <div style="background:var(--paper);padding:24px;border-radius:8px;width:500px;max-width:90%;max-height:90vh;overflow-y:auto;">
       <h3 style="margin-bottom:16px;color:var(--ink);">API 设置</h3>
+
+      <h4 style="margin:16px 0 12px 0;color:var(--ink);font-size:14px;font-weight:600;">快速阅读模型 (Cheap)</h4>
       <div style="margin-bottom:12px;">
         <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">API Key</label>
-        <input id="apiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+        <input id="cheapApiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
       </div>
       <div style="margin-bottom:12px;">
         <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Base URL</label>
-        <input id="apiBase" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+        <input id="cheapBaseUrl" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
       </div>
       <div style="margin-bottom:12px;">
         <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Model</label>
-        <input id="apiModel" type="text" placeholder="gpt-3.5-turbo" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+        <input id="cheapModel" type="text" placeholder="gpt-3.5-turbo" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
       </div>
-      <div id="testResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
+      <div id="cheapTestResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
+      <button class="menu-btn" onclick="testApi('cheap')" style="margin-bottom:16px;">测试连接</button>
+
+      <h4 style="margin:24px 0 12px 0;color:var(--ink);font-size:14px;font-weight:600;">深度评论模型 (Main)</h4>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">API Key</label>
+        <input id="mainApiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Base URL</label>
+        <input id="mainBaseUrl" type="text" placeholder="https://api.openai.com/v1" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:4px;color:var(--ink-fade);font-size:13px;">Model</label>
+        <input id="mainModel" type="text" placeholder="gpt-4" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div id="mainTestResult" style="margin-bottom:12px;padding:10px;border-radius:4px;display:none;font-size:13px;"></div>
+      <button class="menu-btn" onclick="testApi('main')" style="margin-bottom:16px;">测试连接</button>
+
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:nowrap;">
-        <button class="menu-btn" onclick="testApi()" style="white-space:nowrap;margin-right:auto;">测试连接</button>
         <button class="menu-btn" onclick="closeSettings()" style="white-space:nowrap;">取消</button>
         <button class="save-btn" onclick="saveSettings()" style="white-space:nowrap;">保存</button>
       </div>
@@ -411,12 +699,6 @@
           <option value="html">HTML (.html)</option>
           <option value="txt">纯文本 (.txt)</option>
         </select>
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:flex;align-items:center;color:var(--ink-fade);font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="includeContext" checked style="margin-right:8px;">
-          包含上下文
-        </label>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="menu-btn" onclick="closeExportDialog()" style="white-space:nowrap;">取消</button>
@@ -454,6 +736,110 @@
   <script>
     const API_BASE = window.location.origin;
 
+    /* ─── 移动端工具函数 ─────────────────────────────── */
+    function isMobile() { return window.innerWidth <= 768; }
+
+    function openSidebar() {
+      document.getElementById('sidebar').classList.add('open');
+      document.getElementById('drawerMask').classList.add('active');
+      document.getElementById('sidebarCloseBtn').style.display = 'block';
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      const mask = document.getElementById('drawerMask');
+      if (!document.getElementById('notesPanel').classList.contains('open')) {
+        mask.classList.remove('active');
+      }
+      document.getElementById('sidebarCloseBtn').style.display = 'none';
+    }
+    function openNotesPanel() {
+      document.getElementById('notesPanel').classList.add('open');
+      document.getElementById('drawerMask').classList.add('active');
+      document.getElementById('notesPanelCloseBtn').style.display = 'inline-flex';
+    }
+    function closeNotesPanel() {
+      document.getElementById('notesPanel').classList.remove('open');
+      const mask = document.getElementById('drawerMask');
+      if (!document.getElementById('sidebar').classList.contains('open')) {
+        mask.classList.remove('active');
+      }
+      document.getElementById('notesPanelCloseBtn').style.display = 'none';
+    }
+    function closeAllDrawers() {
+      closeSidebar();
+      closeNotesPanel();
+      document.getElementById('drawerMask').classList.remove('active');
+    }
+
+    // 章节加载时关闭 sidebar 并更新顶栏书名
+    function mobileOnChapterLoad(bookName, chapterTitle) {
+      if (isMobile()) {
+        closeSidebar();
+        const titleEl = document.getElementById('mobileTitle');
+        if (titleEl) titleEl.textContent = chapterTitle || bookName || '阅读助手';
+      }
+    }
+    /* ─────────────────────────────────────────────────── */
+
+    let authToken = localStorage.getItem('authToken');
+    let currentUserId = localStorage.getItem('currentUserId');
+    let authMode = 'login';
+
+    async function authFetch(url, options = {}) {
+      const res = await fetch(url, {
+        ...options,
+        headers: { ...options.headers, 'Authorization': `Bearer ${authToken}` }
+      });
+      if (res.status === 401) {
+        localStorage.removeItem('authToken');
+        authToken = null;
+        currentUserId = null;
+        userApiConfig = {};
+        document.getElementById('authOverlay').style.display = 'flex';
+      }
+      return res;
+    }
+
+    async function submitAuth() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const inviteCode = document.getElementById('authInviteCode').value.trim();
+      const errEl = document.getElementById('authError');
+      errEl.style.display = 'none';
+      try {
+        const body = { email, password };
+        if (authMode === 'register') body.inviteCode = inviteCode;
+        const res = await fetch(`${API_BASE}/api/auth/${authMode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { error: text }; }
+        if (!res.ok) { errEl.textContent = data.error || text; errEl.style.display = 'block'; return; }
+        authToken = data.token;
+        currentUserId = String(data.userId);
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentUserId', currentUserId);
+        loadApiConfig();
+        document.getElementById('authOverlay').style.display = 'none';
+        loadProgress().then(loadBooks);
+      } catch {
+        errEl.textContent = '无法连接服务器，请确认服务正在运行'; errEl.style.display = 'block';
+      }
+    }
+
+    function toggleAuthMode() {
+      authMode = authMode === 'login' ? 'register' : 'login';
+      document.getElementById('authTitle').textContent = authMode === 'login' ? '登录' : '注册';
+      document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? '登录' : '注册';
+      document.getElementById('authToggleBtn').textContent = authMode === 'login' ? '注册' : '返回登录';
+      document.getElementById('authInviteWrap').style.display = authMode === 'register' ? 'block' : 'none';
+      document.getElementById('authInviteCode').value = '';
+    }
+
+    document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
     let currentBook = null;
     let currentChapter = null;
     let notes = [];
@@ -463,7 +849,22 @@
     let bookmarks = {};
     let allNotes = {};
     let dialogResolve = null;
-    let userApiConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
+    let userApiConfig = {};
+    function loadApiConfig() {
+      if (!currentUserId) { userApiConfig = {}; return; }
+      const stored = JSON.parse(localStorage.getItem(`apiConfig:${currentUserId}`) || '{}');
+      // 迁移旧全局 apiConfig（只迁移一次）
+      if (!stored.cheap && !stored.main) {
+        const legacy = JSON.parse(localStorage.getItem('apiConfig') || '{}');
+        if (legacy.cheap || legacy.main) {
+          localStorage.setItem(`apiConfig:${currentUserId}`, JSON.stringify(legacy));
+          userApiConfig = legacy;
+          return;
+        }
+      }
+      userApiConfig = stored;
+    }
+    loadApiConfig();
     let readingSettings = JSON.parse(localStorage.getItem('readingSettings') || '{"pageMode":"scroll","fontFamily":"\'Noto Serif SC\', \'Merriweather\', serif"}');
 
     function applyReadingSettings() {
@@ -551,9 +952,12 @@
     }
 
     function openSettings() {
-      document.getElementById('apiKey').value = userApiConfig.apiKey || '';
-      document.getElementById('apiBase').value = userApiConfig.baseUrl || '';
-      document.getElementById('apiModel').value = userApiConfig.model || '';
+      document.getElementById('cheapApiKey').value = userApiConfig.cheap?.apiKey || '';
+      document.getElementById('cheapBaseUrl').value = userApiConfig.cheap?.baseUrl || '';
+      document.getElementById('cheapModel').value = userApiConfig.cheap?.model || '';
+      document.getElementById('mainApiKey').value = userApiConfig.main?.apiKey || '';
+      document.getElementById('mainBaseUrl').value = userApiConfig.main?.baseUrl || '';
+      document.getElementById('mainModel').value = userApiConfig.main?.model || '';
       document.getElementById('settingsDialog').style.display = 'flex';
     }
 
@@ -563,56 +967,64 @@
 
     function saveSettings() {
       userApiConfig = {
-        apiKey: document.getElementById('apiKey').value,
-        baseUrl: document.getElementById('apiBase').value,
-        model: document.getElementById('apiModel').value
+        cheap: {
+          apiKey: document.getElementById('cheapApiKey').value,
+          baseUrl: document.getElementById('cheapBaseUrl').value,
+          model: document.getElementById('cheapModel').value
+        },
+        main: {
+          apiKey: document.getElementById('mainApiKey').value,
+          baseUrl: document.getElementById('mainBaseUrl').value,
+          model: document.getElementById('mainModel').value
+        }
       };
-      localStorage.setItem('apiConfig', JSON.stringify(userApiConfig));
+      localStorage.setItem(`apiConfig:${currentUserId}`, JSON.stringify(userApiConfig));
       closeSettings();
       alert('设置已保存');
     }
 
-    async function testApi() {
-      const apiKey = document.getElementById('apiKey').value;
-      const baseUrl = document.getElementById('apiBase').value;
-      const model = document.getElementById('apiModel').value;
+    async function testApi(type) {
+      const apiKey = document.getElementById(`${type}ApiKey`).value;
+      const baseUrl = document.getElementById(`${type}BaseUrl`).value;
+      const model = document.getElementById(`${type}Model`).value;
 
       if (!apiKey) {
-        showTestResult('请输入 API Key', false);
+        showTestResult(type, '请输入 API Key', false);
         return;
       }
 
-      const testResult = document.getElementById('testResult');
+      const testResult = document.getElementById(`${type}TestResult`);
       testResult.style.display = 'block';
       testResult.style.background = 'var(--accent-soft)';
       testResult.style.color = 'var(--ink)';
       testResult.textContent = '正在测试连接...';
 
       try {
-        const res = await fetch(`${API_BASE}/api/ai/test`, {
+        const res = await authFetch(`${API_BASE}/api/ai/test`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             apiKey,
             baseUrl: baseUrl || 'https://api.openai.com/v1',
-            model: model || 'gpt-3.5-turbo'
+            model: model || 'gpt-3.5-turbo',
+            type
           })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          showTestResult('✓ 连接成功！API 可用', true);
+          showTestResult(type, '✓ 连接成功！API 可用', true);
         } else {
-          showTestResult(`✗ 连接失败: ${data.error}`, false);
+          showTestResult(type, `✗ 连接失败: ${data.error}`, false);
         }
       } catch (error) {
-        showTestResult('✗ 连接失败: 网络错误', false);
+        showTestResult(type, '✗ 连接失败: 网络错误', false);
       }
     }
 
-    function showTestResult(message, success) {
-      const testResult = document.getElementById('testResult');
+    function showTestResult(type, message, success) {
+      const testResult = document.getElementById(`${type}TestResult`);
       testResult.style.display = 'block';
       testResult.style.background = success ? 'oklch(92% 0.08 140)' : 'oklch(92% 0.08 30)';
       testResult.style.color = success ? 'oklch(35% 0.12 140)' : 'oklch(45% 0.12 30)';
@@ -646,21 +1058,54 @@
       if (!file) return;
       const formData = new FormData();
       formData.append('file', file);
-      await fetch(`${API_BASE}/api/books/upload`, { method: 'POST', body: formData });
+      let res;
+      try {
+        res = await authFetch(`${API_BASE}/api/books/upload`, { method: 'POST', body: formData });
+      } catch {
+        alert('上传失败: 无法连接服务器，请确认服务正在运行');
+        document.getElementById('uploadBook').value = '';
+        return;
+      }
       document.getElementById('uploadBook').value = '';
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert('上传失败: ' + (data.error || res.status));
+        return;
+      }
       loadBooks();
     }
 
     async function loadProgress() {
-      const res = await fetch(`${API_BASE}/api/progress`);
+      const res = await authFetch(`${API_BASE}/api/progress`);
+      if (res.status === 401) { logout(); return; }
       const data = await res.json();
       progress = data.progress || {};
       bookmarks = data.bookmarks || {};
-      allNotes = data.allNotes || {};
+      // 迁移旧格式：aiComment string → messages array
+      const rawNotes = data.allNotes || {};
+      let needsMigration = false;
+      for (const bookName of Object.keys(rawNotes)) {
+        rawNotes[bookName] = rawNotes[bookName].map(note => {
+          if (!note.messages) {
+            needsMigration = true;
+            if (note.aiComment) {
+              const role = note.type === 'self' ? 'user' : 'ai';
+              note.messages = [{ role, content: note.aiComment }];
+              delete note.aiComment;
+            } else {
+              note.messages = [];
+            }
+          }
+          if (!note.type) note.type = 'ai';
+          return note;
+        });
+      }
+      allNotes = rawNotes;
+      if (needsMigration) saveProgress();
     }
 
     async function saveProgress() {
-      await fetch(`${API_BASE}/api/progress`, {
+      await authFetch(`${API_BASE}/api/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ progress, bookmarks, allNotes })
@@ -669,12 +1114,14 @@
 
     function persistNotes() {
       if (currentBook) allNotes[currentBook.name] = notes;
-      saveProgress();
+      return saveProgress();
     }
 
     async function loadBooks() {
-      const res = await fetch(`${API_BASE}/api/books`);
+      const res = await authFetch(`${API_BASE}/api/books`);
+      if (res.status === 401) { logout(); return; }
       const books = await res.json();
+      if (!Array.isArray(books)) return;
       document.getElementById('bookList').innerHTML = books.map(book =>
         `<div class="book-item" onclick="loadChapters('${encodeURIComponent(book.filename)}', '${book.name}')" style="display:flex;justify-content:space-between;align-items:center;">
           <span>${book.name}</span>
@@ -685,8 +1132,8 @@
 
     async function deleteBook(filename) {
       if (!confirm('确认删除这本书？')) return;
-      const deletingCurrent = currentBook && currentBook.filename === decodeURIComponent(filename);
-      await fetch(`${API_BASE}/api/books/${filename}`, { method: 'DELETE' });
+      const deletingCurrent = currentBook && currentBook.filename === filename;
+      await authFetch(`${API_BASE}/api/books/${filename}`, { method: 'DELETE' });
 
       if (deletingCurrent) {
         currentBook = null;
@@ -694,7 +1141,7 @@
         document.getElementById('chapterList').innerHTML = '';
 
         // 取剩余书单，自动切换
-        const res = await fetch(`${API_BASE}/api/books`);
+        const res = await authFetch(`${API_BASE}/api/books`);
         const books = await res.json();
         if (books.length > 0) {
           const next = books[books.length - 1]; // 优先切到最后一本（即"上一本"）
@@ -716,7 +1163,7 @@
 
     async function loadChapters(filename, bookName) {
       currentBook = { filename, name: bookName };
-      const res = await fetch(`${API_BASE}/api/books/${filename}/chapters`);
+      const res = await authFetch(`${API_BASE}/api/books/${filename}/chapters`);
       const chapters = await res.json();
       document.getElementById('chapterList').innerHTML = chapters.map((ch, i) =>
         `<div class="chapter-item" onclick="loadChapter(${i}, '${ch.title}')">${ch.title}</div>`
@@ -757,6 +1204,7 @@
       document.querySelectorAll('.chapter-item').forEach((el, i) => el.classList.toggle('active', i === index));
       enableTextSelection();
       setupPageMode();
+      mobileOnChapterLoad(currentBook ? currentBook.name : '', title);
 
       const bookBookmarks = bookmarks[currentBook.name] || [];
       const chapterBookmarks = bookBookmarks.filter(b => b.chapter === index);
@@ -802,29 +1250,53 @@
       saveProgress();
     }
 
+    let textSelectionInitialized = false;
     function enableTextSelection() {
-      document.getElementById('reader').addEventListener('mouseup', (e) => {
+      if (textSelectionInitialized) return;
+      textSelectionInitialized = true;
+
+      function showHighlightMenu(e) {
         const selection = window.getSelection();
         selectedText = selection.toString().trim();
-        if (selectedText.length > 5) {
+        if (selectedText.length > 5 && e.target.closest('#reader')) {
           selectedRange = selection.getRangeAt(0);
           const menu = document.getElementById('highlightMenu');
-          menu.style.display = 'block';
-          menu.style.left = e.pageX + 'px';
-          menu.style.top = (e.pageY + 20) + 'px';
+          if (isMobile()) {
+            // 底部 sheet 模式
+            menu.classList.add('mobile-visible');
+          } else {
+            menu.style.display = 'block';
+            const pageX = e.pageX !== undefined ? e.pageX : (e.changedTouches ? e.changedTouches[0].pageX : 0);
+            const pageY = e.pageY !== undefined ? e.pageY : (e.changedTouches ? e.changedTouches[0].pageY : 0);
+            menu.style.left = pageX + 'px';
+            menu.style.top = (pageY + 20) + 'px';
+          }
+          menu._justOpened = true;
         }
+      }
+
+      document.addEventListener('mouseup', showHighlightMenu);
+      // 移动端 touchend 支持划词
+      document.addEventListener('touchend', (e) => {
+        // 延迟一帧让浏览器更新 selection
+        setTimeout(() => showHighlightMenu(e), 80);
       });
 
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('#highlightMenu') && !e.target.closest('.reader')) {
-          document.getElementById('highlightMenu').style.display = 'none';
-          window.getSelection().removeAllRanges();
-        }
+        const menu = document.getElementById('highlightMenu');
+        if (menu._justOpened) { menu._justOpened = false; return; }
+        if (e.target.closest('#highlightMenu') || e.target.closest('#inputDialog')) return;
+        menu.classList.remove('mobile-visible');
+        menu.style.display = 'none';
+        window.getSelection().removeAllRanges();
       });
     }
 
+
     async function handleHighlight(type) {
-      document.getElementById('highlightMenu').style.display = 'none';
+      const menu = document.getElementById('highlightMenu');
+      menu.classList.remove('mobile-visible');
+      menu.style.display = 'none';
 
       // 书签：找到选区所在段落，切换书签后返回
       if (type === 'bookmark') {
@@ -854,23 +1326,37 @@
         const noteId = String(Date.now());
         const note = {
           id: noteId,
+          type,
           chapterTitle: currentChapter.title,
           highlightedText: selectedText,
           contextText: paragraphText,
-          aiComment: '',
+          messages: [],
           timestamp: new Date().toLocaleString('zh-CN')
         };
 
         if (type === 'self') {
           const comment = await showDialog('写下你的想法');
-          if (comment) note.aiComment = comment;
+          if (comment) note.messages = [{ role: 'user', content: comment }];
         } else if (type === 'ai') {
-          if (!userApiConfig.apiKey) { alert('请先在设置中配置 API Key'); return; }
-          note.aiComment = '[点击"继续讨论"获取 AI 评论]';
-          note.pendingAI = true;
+          if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) { alert('请先在设置中配置 API Key'); return; }
+          notes.unshift(note);
+          renderNotes();
+          persistNotes();
+          window.getSelection().removeAllRanges();
+          triggerAiComment(note);
+          return;
         } else if (type === 'discuss') {
+          if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) { alert('请先在设置中配置 API Key'); return; }
           const question = await showDialog('你想讨论什么？');
-          if (question) note.aiComment = `${question}\n\n正在回复…`;
+          if (question) {
+            note.messages = [{ role: 'user', content: question }];
+            notes.unshift(note);
+            renderNotes();
+            persistNotes();
+            window.getSelection().removeAllRanges();
+            triggerAiComment(note);
+          }
+          return;
         }
 
         notes.unshift(note);
@@ -895,26 +1381,43 @@
 
       const note = {
         id: span.dataset.noteId,
+        type,
         chapterTitle: currentChapter.title,
         highlightedText: selectedText,
         contextText: paragraphText,
-        aiComment: '',
+        messages: [],
         timestamp: new Date().toLocaleString('zh-CN')
       };
 
       if (type === 'self') {
         const comment = await showDialog('写下你的想法');
-        if (comment) note.aiComment = comment;
+        if (comment) note.messages = [{ role: 'user', content: comment }];
       } else if (type === 'ai') {
-        if (!userApiConfig.apiKey) {
+        if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
           alert('请先在设置中配置 API Key');
           return;
         }
-        note.aiComment = '[点击"继续讨论"获取 AI 评论]';
-        note.pendingAI = true;
+        notes.unshift(note);
+        renderNotes();
+        persistNotes();
+        window.getSelection().removeAllRanges();
+        triggerAiComment(note);
+        return;
       } else if (type === 'discuss') {
+        if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
+          alert('请先在设置中配置 API Key');
+          return;
+        }
         const question = await showDialog('你想讨论什么？');
-        if (question) note.aiComment = `${question}\n\n正在回复…`;
+        if (question) {
+          note.messages = [{ role: 'user', content: question }];
+          notes.unshift(note);
+          renderNotes();
+          persistNotes();
+          window.getSelection().removeAllRanges();
+          triggerAiComment(note);
+        }
+        return;
       }
 
       notes.unshift(note);
@@ -924,15 +1427,32 @@
     }
 
     function renderNotes() {
-      document.getElementById('notesList').innerHTML = notes.map((note, index) => `
+      document.getElementById('notesList').innerHTML = notes.map((note, index) => {
+        const msgs = note.messages || [];
+        const isLoading = msgs.length > 0 && msgs[msgs.length - 1].content === '正在思考…';
+        const canInteract = msgs.length > 0 && !isLoading;
+        const btnLabel = note.type === 'self' ? '💬 评论' : '💬 继续讨论';
+
+        const bubblesHtml = msgs.map(m => {
+          const isUser = m.role === 'user';
+          const wrapClass = isUser ? 'msg-user-wrap' : 'msg-ai-wrap';
+          const bubClass = isUser ? 'msg-bubble msg-user' : 'msg-bubble msg-ai';
+          const label = isUser ? '我' : 'AI';
+          return `<div class="${wrapClass}">
+            <div class="msg-label">${label}</div>
+            <div class="${bubClass}">${m.content}</div>
+          </div>`;
+        }).join('');
+
+        return `
         <div class="note-card">
           <button class="delete-btn" onclick="deleteNote(${index})" title="删除">×</button>
           <div class="note-highlight" onclick="locateHighlight('${note.id}')" style="cursor:pointer;" title="定位到原文">"${note.highlightedText.slice(0, 80)}${note.highlightedText.length > 80 ? '…' : ''}"</div>
-          ${note.aiComment ? `<div class="note-comment">${note.aiComment}</div>` : ''}
-          ${note.aiComment && !note.aiComment.includes('正在') ? `<button class="menu-btn" onclick="continueDiscussion(${index})" style="margin-top:8px;padding:6px 12px;font-size:12px;">💬 继续讨论</button>` : ''}
+          ${bubblesHtml ? `<div class="note-messages">${bubblesHtml}</div>` : ''}
+          ${canInteract ? `<button class="menu-btn" onclick="continueDiscussion(${index})" style="margin-top:8px;padding:6px 12px;font-size:12px;">${btnLabel}</button>` : ''}
           <div class="note-time">${note.timestamp}</div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
 
     function locateHighlight(noteId) {
@@ -978,27 +1498,15 @@
       }
     }
 
-    async function continueDiscussion(index) {
-      if (!userApiConfig.apiKey) {
-        alert('请先在设置中配置 API Key');
-        return;
-      }
-
-      const note = notes[index];
-      const question = await showDialog(note.pendingAI ? 'AI 会为你评论这段文本' : '继续讨论什么？', note.pendingAI ? '' : '输入你的问题或想法');
-
-      if (note.pendingAI || question) {
-        const originalComment = note.aiComment;
-        note.aiComment = originalComment + '\n\n正在思考…';
-        renderNotes();
-
-        const text = window.chapters[currentChapter.index].text;
-        const pos = text.indexOf(note.highlightedText);
-        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
-
-        const conversationHistory = note.pendingAI ? [] : [{ role: 'assistant', content: originalComment }, { role: 'user', content: question }];
-
-        const res = await fetch(`${API_BASE}/api/ai/comment`, {
+    async function triggerAiComment(note) {
+      if (!note.messages) note.messages = [];
+      note.messages.push({ role: 'ai', content: '正在思考…' });
+      renderNotes();
+      const text = window.chapters[currentChapter.index].text;
+      const pos = text.indexOf(note.highlightedText);
+      const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+      try {
+        const res = await authFetch(`${API_BASE}/api/ai/comment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1007,17 +1515,63 @@
             highlightedText: note.highlightedText,
             surroundingText: surrounding,
             previousInsights: [],
-            conversationHistory,
+            conversationHistory: [],
             userApiConfig
           })
         });
         const data = await res.json();
+        note.messages[note.messages.length - 1].content = data.comment || data.error || 'AI 调用失败';
+      } catch {
+        note.messages[note.messages.length - 1].content = '网络错误，请重试';
+      }
+      renderNotes();
+      persistNotes();
+    }
 
-        if (note.pendingAI) {
-          note.aiComment = data.comment;
-          delete note.pendingAI;
-        } else {
-          note.aiComment = originalComment + '\n\n> ' + question + '\n\n' + data.comment;
+    async function continueDiscussion(index) {
+      if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
+        alert('请先在设置中配置 API Key');
+        return;
+      }
+
+      const note = notes[index];
+      const isSelf = note.type === 'self';
+      const question = await showDialog(isSelf ? '写下你对这段评论的想法' : '继续讨论什么？', '输入你的问题或想法');
+
+      if (question) {
+        if (!note.messages) note.messages = [];
+        note.messages.push({ role: 'user', content: question });
+        note.messages.push({ role: 'ai', content: '正在思考…' });
+        renderNotes();
+
+        const text = window.chapters[currentChapter.index].text;
+        const pos = text.indexOf(note.highlightedText);
+        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+
+        // 构建对话历史（排除最后一条"正在思考"）
+        const history = note.messages.slice(0, -1).map(m => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.content
+        }));
+
+        try {
+          const res = await authFetch(`${API_BASE}/api/ai/comment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookTitle: currentBook.name,
+              chapterTitle: note.chapterTitle,
+              highlightedText: note.highlightedText,
+              surroundingText: surrounding,
+              previousInsights: [],
+              conversationHistory: history,
+              userApiConfig
+            })
+          });
+          const data = await res.json();
+          note.messages[note.messages.length - 1].content = data.comment || data.error || 'AI 调用失败';
+        } catch {
+          note.messages[note.messages.length - 1].content = '网络错误，请重试';
         }
         renderNotes();
         persistNotes();
@@ -1025,12 +1579,8 @@
     }
 
     async function saveNotes() {
-      await fetch(`${API_BASE}/api/notes/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookTitle: currentBook.name, notes })
-      });
-      alert('已保存至 Obsidian');
+      await persistNotes();
+      alert('笔记已保存');
     }
 
     function openExportDialog() {
@@ -1047,22 +1597,24 @@
 
     function exportNotes() {
       const format = document.getElementById('exportFormat').value;
-      const includeContext = document.getElementById('includeContext').checked;
 
       let content = '';
       const bookTitle = currentBook.name;
       const timestamp = new Date().toLocaleString('zh-CN');
 
+      function msgsToText(messages) {
+        if (!messages || messages.length === 0) return '';
+        return messages.map(m => (m.role === 'user' ? '我：' : 'AI：') + m.content).join('\n\n');
+      }
+
       if (format === 'md') {
         content = `# ${bookTitle}\n\n> 导出时间：${timestamp}\n\n`;
         notes.forEach(note => {
           content += `## ${note.chapterTitle}\n\n`;
-          if (includeContext && note.contextText) {
-            content += `**上下文：**\n> ...${note.contextText}...\n\n`;
-          }
           content += `**划线原文：**\n> ${note.highlightedText}\n\n`;
-          if (note.aiComment) {
-            content += `**评论/笔记：**\n${note.aiComment.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
+          const msgText = msgsToText(note.messages);
+          if (msgText) {
+            content += `**评论/笔记：**\n${msgText.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
           }
           content += `*${note.timestamp}*\n\n---\n\n`;
         });
@@ -1076,7 +1628,6 @@
     body { font-family: 'Noto Serif SC', serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.8; color: #2d3436; }
     h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
     .note { margin: 30px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #0984e3; border-radius: 4px; }
-    .context { color: #636e72; font-style: italic; font-size: 0.95em; margin-bottom: 12px; padding: 8px; background: #f1f2f6; border-radius: 4px; }
     .highlight { color: #d63031; font-weight: 600; margin-bottom: 15px; border-bottom: 1px dashed #d63031; display: inline-block; }
     .comment { margin-left: 30px; color: #2d3436; white-space: pre-wrap; border-left: 3px solid #dfe6e9; padding-left: 15px; margin-top: 15px; }
     .time { color: #b2bec3; font-size: 0.85em; margin-top: 15px; }
@@ -1087,27 +1638,25 @@
   <p style="color:#b2bec3;">导出时间：${timestamp}</p>
 `;
         notes.forEach(note => {
+          const msgText = msgsToText(note.messages);
           content += `  <div class="note">
     <h2>${note.chapterTitle}</h2>
-    ${includeContext && note.contextText ? `<div class="context">...${note.contextText}...</div>` : ''}
     <div class="highlight">"${note.highlightedText}"</div>
-    ${note.aiComment ? `<div class="comment">${note.aiComment}</div>` : ''}
+    ${msgText ? `<div class="comment">${msgText}</div>` : ''}
     <div class="time">${note.timestamp}</div>
   </div>\n`;
         });
         content += `</body>\n</html>`;
       } else if (format === 'txt') {
-        content = `${bookTitle}\n导出时间：${timestamp}\n\n${'=' .repeat(50)}\n\n`;
+        content = `${bookTitle}\n导出时间：${timestamp}\n\n${'='.repeat(50)}\n\n`;
         notes.forEach(note => {
           content += `${note.chapterTitle}\n\n`;
-          if (includeContext && note.contextText) {
-            content += `[上下文]：...${note.contextText}...\n\n`;
-          }
           content += `[划线原文]：${note.highlightedText}\n\n`;
-          if (note.aiComment) {
-            content += `[评论/笔记]：\n${note.aiComment.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
+          const msgText = msgsToText(note.messages);
+          if (msgText) {
+            content += `[评论/笔记]：\n${msgText.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
           }
-          content += `时间：${note.timestamp}\n\n${'-' .repeat(50)}\n\n`;
+          content += `时间：${note.timestamp}\n\n${'-'.repeat(50)}\n\n`;
         });
       }
 
@@ -1121,6 +1670,15 @@
       closeExportDialog();
     }
 
+    function logout() {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUserId');
+      authToken = null;
+      currentUserId = null;
+      userApiConfig = {};
+      document.getElementById('authOverlay').style.display = 'flex';
+    }
+
     function toggleTheme() {
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
@@ -1131,7 +1689,42 @@
     }
 
     applyReadingSettings();
-    loadProgress().then(loadBooks);
+
+    // 移动端初始化：显示关闭按钮
+    (function initMobile() {
+      if (!isMobile()) return;
+      document.getElementById('sidebarCloseBtn').style.display = 'none'; // 只在抽屉打开后再显示
+      // 阅读设置保存时，移动端强制 scroll 模式（防止翻页模式破坏正文方向）
+      const origSaveRS = saveReadingSettings;
+      saveReadingSettings = function() {
+        origSaveRS();
+        const reader = document.getElementById('reader');
+        if (reader) reader.classList.remove('page-mode');
+      };
+    })();
+
+    if (authToken) {
+      // 如果 currentUserId 丢失（旧 session），从服务器补取再继续
+      if (!currentUserId) {
+        fetch(`${API_BASE}/api/user/profile`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        }).then(r => r.ok ? r.json() : null).then(data => {
+          if (data?.userId) {
+            currentUserId = String(data.userId);
+            localStorage.setItem('currentUserId', currentUserId);
+            loadApiConfig();
+            loadProgress().then(loadBooks);
+          } else {
+            logout();
+          }
+        }).catch(() => logout());
+      } else {
+        loadApiConfig();
+        loadProgress().then(loadBooks);
+      }
+    } else {
+      document.getElementById('authOverlay').style.display = 'flex';
+    }
   </script>
 </body>
 </html>

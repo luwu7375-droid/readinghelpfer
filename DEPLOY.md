@@ -1,74 +1,73 @@
-# Railway 部署指南
+# 部署说明
 
-## 快速部署步骤
+> **不适合的平台**
+> - **Vercel**：Serverless 环境，本地文件系统不可持久化，数据库和书籍文件均会丢失。
+> - **Render 免费层**：不提供 Persistent Disk，重启后 `data/` 全部丢失。
 
-### 方法 1: 通过 GitHub 部署（推荐）
+---
 
-1. **创建 GitHub 仓库**
-   - 访问 https://github.com/new
-   - 仓库名: `ai-reading-system`
-   - 设为 Public
-   - 不要添加 README、.gitignore 或 license（我们已经有了）
-   - 点击 "Create repository"
+## 方案一：Railway（推荐）
 
-2. **推送代码到 GitHub**
+`railway.json` 已配置，直接支持 `npm start`。
 
-   在终端运行：
-   ```bash
-   git remote add origin https://github.com/你的用户名/ai-reading-system.git
-   git branch -M main
-   git push -u origin main
-   ```
+### 操作步骤
 
-3. **部署到 Railway**
-   - 访问 https://railway.app
-   - 用 GitHub 账号登录
-   - 点击 "New Project"
-   - 选择 "Deploy from GitHub repo"
-   - 选择 `ai-reading-system` 仓库
-   - Railway 会自动检测并部署
+1. [railway.app](https://railway.app) → New Project → Deploy from GitHub repo → 选本仓库
+2. 部署完成后，进入服务页面 → **Volumes** → **Add Volume**
+   - Mount Path：`/app/data`
+   - Size：按需（1 GB 起步）
+3. 设置环境变量（Settings → Variables）：
 
-4. **设置环境变量**
+| 变量 | 值 |
+|------|----|
+| `DATABASE_URL` | `/app/data/app.db` |
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` | 随机长字符串（可用 `openssl rand -hex 32` 生成） |
+| `INVITE_CODE` | 你的邀请码 |
 
-   在 Railway 项目设置中添加：
-   ```
-   CHEAP_API_KEY=你的API密钥
-   CHEAP_BASE_URL=https://api.example.com
-   MAIN_API_KEY=你的API密钥
-   MAIN_BASE_URL=https://api.example.com
-   CHEAP_MODEL=gpt-3.5-turbo
-   MAIN_MODEL=gpt-4
-   OBSIDIAN_VAULT_PATH=/tmp/obsidian
-   ```
+4. 挂载 Volume 后点 **Redeploy**
+5. Settings → Networking → **Generate Domain** 获取公网地址
 
-5. **获取部署地址**
-   - 部署完成后，点击 "Settings" → "Networking"
-   - 点击 "Generate Domain"
-   - 会得到一个公开地址，如: `https://your-app.railway.app`
+---
 
-### 方法 2: 通过 Railway CLI 部署
+## 方案二：Render 付费 Web Service
 
-在终端运行：
-```bash
-# 登录（会打开浏览器）
-railway login
+`render.yaml` 已配置，含 Persistent Disk。
 
-# 初始化项目
-railway init
+### 操作步骤
 
-# 部署
-railway up
+1. [render.com](https://render.com) → New → Web Service → 连接 GitHub 仓库
+2. 配置：
+   - **Build Command**：`npm install`
+   - **Start Command**：`npm start`
+   - **Instance Type**：Starter（$7/月）或以上（免费层无持久盘）
+3. Advanced → **Add Disk**：
+   - Name：`data`
+   - Mount Path：`/opt/render/project/src/data`
+   - Size：1 GB
+4. 设置环境变量：
 
-# 获取部署地址
-railway domain
-```
+| 变量 | 值 |
+|------|----|
+| `DATABASE_URL` | `/opt/render/project/src/data/app.db` |
+| `NODE_ENV` | `production` |
+| `JWT_SECRET` | 随机长字符串 |
+| `INVITE_CODE` | 你的邀请码 |
 
-## 部署后
+5. 点 **Create Web Service**，Render 自动分配 `*.onrender.com` 域名
 
-访问生成的公开地址即可使用，可以在任何设备上访问！
+---
 
-## 注意事项
+## 环境变量说明
 
-- 免费版有 500 小时/月的限制
-- 上传的书籍会在服务重启后丢失（存储在 /tmp 目录）
-- 如需持久化存储，需要添加 Volume 存储卷
+| 变量 | 必填 | 默认值 | 说明 |
+|------|------|--------|------|
+| `PORT` | 否 | `3000` | Railway/Render 会自动注入，无需手动设置 |
+| `JWT_SECRET` | **生产必填** | — | 未设置时生产环境启动报错退出 |
+| `DATABASE_URL` | 生产必填 | `data/app.db` | 必须指向持久盘路径 |
+| `INVITE_CODE` | 否 | — | 设置后注册必须提供邀请码；留空则不校验 |
+
+## 安全提示
+
+- API Key 仅存于用户浏览器 `localStorage`，不进入数据库
+- 生产环境使用平台自带 HTTPS，无需额外配置
