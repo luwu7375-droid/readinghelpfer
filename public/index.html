@@ -791,7 +791,27 @@
       const data = await res.json();
       progress = data.progress || {};
       bookmarks = data.bookmarks || {};
-      allNotes = data.allNotes || {};
+      // 迁移旧格式：aiComment string → messages array
+      const rawNotes = data.allNotes || {};
+      let needsMigration = false;
+      for (const bookName of Object.keys(rawNotes)) {
+        rawNotes[bookName] = rawNotes[bookName].map(note => {
+          if (!note.messages) {
+            needsMigration = true;
+            if (note.aiComment) {
+              const role = note.type === 'self' ? 'user' : 'ai';
+              note.messages = [{ role, content: note.aiComment }];
+              delete note.aiComment;
+            } else {
+              note.messages = [];
+            }
+          }
+          if (!note.type) note.type = 'ai';
+          return note;
+        });
+      }
+      allNotes = rawNotes;
+      if (needsMigration) saveProgress();
     }
 
     async function saveProgress() {
