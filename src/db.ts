@@ -12,50 +12,52 @@ export async function initDB(dbPath: string = 'data/app.db') {
     db = new SQL.Database(buffer);
   } catch {
     db = new SQL.Database();
-    db.run(`
-      CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE TABLE books (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        filename TEXT NOT NULL,
-        original_name TEXT NOT NULL,
-        size INTEGER NOT NULL,
-        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      );
-      CREATE TABLE reading_progress (
-        user_id INTEGER NOT NULL,
-        book_filename TEXT NOT NULL,
-        chapter_index INTEGER DEFAULT 0,
-        scroll_position INTEGER DEFAULT 0,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (user_id, book_filename),
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      );
-      CREATE TABLE notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        book_id INTEGER NOT NULL,
-        chapter_title TEXT NOT NULL,
-        highlighted_text TEXT NOT NULL,
-        ai_comment TEXT,
-        user_annotation TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (book_id) REFERENCES books(id)
-      );
-      CREATE TABLE user_data (
-        user_id INTEGER PRIMARY KEY,
-        data TEXT NOT NULL DEFAULT '{}',
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      );
-    `);
   }
+
+  // 用 IF NOT EXISTS 确保所有表存在，兼容旧库
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS books (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    CREATE TABLE IF NOT EXISTS reading_progress (
+      user_id INTEGER NOT NULL,
+      book_filename TEXT NOT NULL,
+      chapter_index INTEGER DEFAULT 0,
+      scroll_position INTEGER DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, book_filename),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    CREATE TABLE IF NOT EXISTS notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      book_id INTEGER NOT NULL,
+      chapter_title TEXT NOT NULL,
+      highlighted_text TEXT NOT NULL,
+      ai_comment TEXT,
+      user_annotation TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (book_id) REFERENCES books(id)
+    );
+    CREATE TABLE IF NOT EXISTS user_data (
+      user_id INTEGER PRIMARY KEY,
+      data TEXT NOT NULL DEFAULT '{}',
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
 
   await saveDB(dbPath);
   return db;

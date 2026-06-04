@@ -760,6 +760,7 @@
 
     async function loadProgress() {
       const res = await authFetch(`${API_BASE}/api/progress`);
+      if (res.status === 401) { logout(); return; }
       const data = await res.json();
       progress = data.progress || {};
       bookmarks = data.bookmarks || {};
@@ -781,7 +782,9 @@
 
     async function loadBooks() {
       const res = await authFetch(`${API_BASE}/api/books`);
+      if (res.status === 401) { logout(); return; }
       const books = await res.json();
+      if (!Array.isArray(books)) return;
       document.getElementById('bookList').innerHTML = books.map(book =>
         `<div class="book-item" onclick="loadChapters('${encodeURIComponent(book.filename)}', '${book.name}')" style="display:flex;justify-content:space-between;align-items:center;">
           <span>${book.name}</span>
@@ -909,24 +912,31 @@
       saveProgress();
     }
 
+    let textSelectionInitialized = false;
     function enableTextSelection() {
-      document.getElementById('reader').addEventListener('mouseup', (e) => {
+      if (textSelectionInitialized) return;
+      textSelectionInitialized = true;
+
+      document.addEventListener('mouseup', (e) => {
         const selection = window.getSelection();
         selectedText = selection.toString().trim();
-        if (selectedText.length > 5) {
+        if (selectedText.length > 5 && e.target.closest('#reader')) {
           selectedRange = selection.getRangeAt(0);
           const menu = document.getElementById('highlightMenu');
           menu.style.display = 'block';
           menu.style.left = e.pageX + 'px';
           menu.style.top = (e.pageY + 20) + 'px';
+          // 阻止本次 mouseup 对应的 click 事件关掉菜单
+          menu._justOpened = true;
         }
       });
 
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('#highlightMenu') && !e.target.closest('.reader')) {
-          document.getElementById('highlightMenu').style.display = 'none';
-          window.getSelection().removeAllRanges();
-        }
+        const menu = document.getElementById('highlightMenu');
+        if (menu._justOpened) { menu._justOpened = false; return; }
+        if (e.target.closest('#highlightMenu') || e.target.closest('#inputDialog')) return;
+        menu.style.display = 'none';
+        window.getSelection().removeAllRanges();
       });
     }
 
@@ -973,8 +983,12 @@
           if (comment) note.aiComment = comment;
         } else if (type === 'ai') {
           if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) { alert('请先在设置中配置 API Key'); return; }
-          note.aiComment = '[点击"继续讨论"获取 AI 评论]';
-          note.pendingAI = true;
+          notes.unshift(note);
+          renderNotes();
+          persistNotes();
+          window.getSelection().removeAllRanges();
+          triggerAiComment(note);
+          return;
         } else if (type === 'discuss') {
           const question = await showDialog('你想讨论什么？');
           if (question) note.aiComment = `${question}\n\n正在回复…`;
@@ -1017,8 +1031,12 @@
           alert('请先在设置中配置 API Key');
           return;
         }
-        note.aiComment = '[点击"继续讨论"获取 AI 评论]';
-        note.pendingAI = true;
+        notes.unshift(note);
+        renderNotes();
+        persistNotes();
+        window.getSelection().removeAllRanges();
+        triggerAiComment(note);
+        return;
       } else if (type === 'discuss') {
         const question = await showDialog('你想讨论什么？');
         if (question) note.aiComment = `${question}\n\n正在回复…`;
@@ -1085,26 +1103,13 @@
       }
     }
 
-    async function continueDiscussion(index) {
-      if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
-        alert('请先在设置中配置 API Key');
-        return;
-      }
-
-      const note = notes[index];
-      const question = await showDialog(note.pendingAI ? 'AI 会为你评论这段文本' : '继续讨论什么？', note.pendingAI ? '' : '输入你的问题或想法');
-
-      if (note.pendingAI || question) {
-        const originalComment = note.aiComment;
-        note.aiComment = originalComment + '\n\n正在思考…';
-        renderNotes();
-
-        const text = window.chapters[currentChapter.index].text;
-        const pos = text.indexOf(note.highlightedText);
-        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
-
-        const conversationHistory = note.pendingAI ? [] : [{ role: 'assistant', content: originalComment }, { role: 'user', content: question }];
-
+    async function triggerAiComment(note) {
+      note.aiComment = '正在思考…';
+      renderNotes();
+      const text = window.chapters[currentChapter.index].text;
+      const pos = text.indexOf(note.highlightedText);
+      const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+      try {
         const res = await authFetch(`${API_BASE}/api/ai/comment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1114,17 +1119,55 @@
             highlightedText: note.highlightedText,
             surroundingText: surrounding,
             previousInsights: [],
-            conversationHistory,
+            conversationHistory: [],
             userApiConfig
           })
         });
         const data = await res.json();
+        note.aiComment = data.comment || data.error || 'AI 调用失败';
+      } catch {
+        note.aiComment = '网络错误，请重试';
+      }
+      renderNotes();
+      persistNotes();
+    }
 
-        if (note.pendingAI) {
-          note.aiComment = data.comment;
-          delete note.pendingAI;
-        } else {
-          note.aiComment = originalComment + '\n\n> ' + question + '\n\n' + data.comment;
+    async function continueDiscussion(index) {
+      if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
+        alert('请先在设置中配置 API Key');
+        return;
+      }
+
+      const note = notes[index];
+      const question = await showDialog('继续讨论什么？', '输入你的问题或想法');
+
+      if (question) {
+        const originalComment = note.aiComment;
+        note.aiComment = originalComment + '\n\n正在思考…';
+        renderNotes();
+
+        const text = window.chapters[currentChapter.index].text;
+        const pos = text.indexOf(note.highlightedText);
+        const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+
+        try {
+          const res = await authFetch(`${API_BASE}/api/ai/comment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookTitle: currentBook.name,
+              chapterTitle: note.chapterTitle,
+              highlightedText: note.highlightedText,
+              surroundingText: surrounding,
+              previousInsights: [],
+              conversationHistory: [{ role: 'assistant', content: originalComment }, { role: 'user', content: question }],
+              userApiConfig
+            })
+          });
+          const data = await res.json();
+          note.aiComment = originalComment + '\n\n> ' + question + '\n\n' + (data.comment || data.error || 'AI 调用失败');
+        } catch {
+          note.aiComment = originalComment + '\n\n网络错误，请重试';
         }
         renderNotes();
         persistNotes();
