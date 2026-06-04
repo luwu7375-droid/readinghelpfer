@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ai-reading-system
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: /opt/render/project/src/data/app.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: INVITE_CODE
+        sync: false
