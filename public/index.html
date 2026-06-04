@@ -536,14 +536,16 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        const data = await res.json();
-        if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { error: text }; }
+        if (!res.ok) { errEl.textContent = data.error || text; errEl.style.display = 'block'; return; }
         authToken = data.token;
         localStorage.setItem('authToken', authToken);
         document.getElementById('authOverlay').style.display = 'none';
         loadProgress().then(loadBooks);
       } catch {
-        errEl.textContent = '网络错误'; errEl.style.display = 'block';
+        errEl.textContent = '无法连接服务器，请确认服务正在运行'; errEl.style.display = 'block';
       }
     }
 
