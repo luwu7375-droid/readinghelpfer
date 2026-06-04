@@ -255,15 +255,46 @@
       line-height: 1.6;
     }
 
-    .note-comment {
-      color: var(--ink-fade);
+    .note-messages {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .msg-bubble {
       font-size: 13px;
-      line-height: 1.8;
-      margin-top: 8px;
+      line-height: 1.7;
+      padding: 8px 12px;
+      border-radius: 10px;
       white-space: pre-wrap;
-      text-indent: 2em;
+      max-width: 92%;
+      word-break: break-word;
     }
+
+    .msg-user {
+      align-self: flex-end;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-bottom-right-radius: 3px;
     }
+
+    .msg-ai {
+      align-self: flex-start;
+      background: var(--divider);
+      color: var(--ink);
+      border-bottom-left-radius: 3px;
+    }
+
+    .msg-label {
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: var(--ink-lighter);
+      margin-bottom: 2px;
+    }
+
+    .msg-user-wrap { align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; max-width: 92%; }
+    .msg-ai-wrap   { align-self: flex-start; display: flex; flex-direction: column; align-items: flex-start; max-width: 92%; }
 
     .note-time {
       color: var(--ink-lighter);
@@ -447,12 +478,6 @@
           <option value="html">HTML (.html)</option>
           <option value="txt">纯文本 (.txt)</option>
         </select>
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:flex;align-items:center;color:var(--ink-fade);font-size:13px;cursor:pointer;">
-          <input type="checkbox" id="includeContext" checked style="margin-right:8px;">
-          包含上下文
-        </label>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="menu-btn" onclick="closeExportDialog()" style="white-space:nowrap;">取消</button>
@@ -971,16 +996,17 @@
         const noteId = String(Date.now());
         const note = {
           id: noteId,
+          type,
           chapterTitle: currentChapter.title,
           highlightedText: selectedText,
           contextText: paragraphText,
-          aiComment: '',
+          messages: [],
           timestamp: new Date().toLocaleString('zh-CN')
         };
 
         if (type === 'self') {
           const comment = await showDialog('写下你的想法');
-          if (comment) note.aiComment = comment;
+          if (comment) note.messages = [{ role: 'user', content: comment }];
         } else if (type === 'ai') {
           if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) { alert('请先在设置中配置 API Key'); return; }
           notes.unshift(note);
@@ -990,8 +1016,17 @@
           triggerAiComment(note);
           return;
         } else if (type === 'discuss') {
+          if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) { alert('请先在设置中配置 API Key'); return; }
           const question = await showDialog('你想讨论什么？');
-          if (question) note.aiComment = `${question}\n\n正在回复…`;
+          if (question) {
+            note.messages = [{ role: 'user', content: question }];
+            notes.unshift(note);
+            renderNotes();
+            persistNotes();
+            window.getSelection().removeAllRanges();
+            triggerAiComment(note);
+          }
+          return;
         }
 
         notes.unshift(note);
@@ -1016,16 +1051,17 @@
 
       const note = {
         id: span.dataset.noteId,
+        type,
         chapterTitle: currentChapter.title,
         highlightedText: selectedText,
         contextText: paragraphText,
-        aiComment: '',
+        messages: [],
         timestamp: new Date().toLocaleString('zh-CN')
       };
 
       if (type === 'self') {
         const comment = await showDialog('写下你的想法');
-        if (comment) note.aiComment = comment;
+        if (comment) note.messages = [{ role: 'user', content: comment }];
       } else if (type === 'ai') {
         if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
           alert('请先在设置中配置 API Key');
@@ -1038,8 +1074,20 @@
         triggerAiComment(note);
         return;
       } else if (type === 'discuss') {
+        if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
+          alert('请先在设置中配置 API Key');
+          return;
+        }
         const question = await showDialog('你想讨论什么？');
-        if (question) note.aiComment = `${question}\n\n正在回复…`;
+        if (question) {
+          note.messages = [{ role: 'user', content: question }];
+          notes.unshift(note);
+          renderNotes();
+          persistNotes();
+          window.getSelection().removeAllRanges();
+          triggerAiComment(note);
+        }
+        return;
       }
 
       notes.unshift(note);
@@ -1049,15 +1097,32 @@
     }
 
     function renderNotes() {
-      document.getElementById('notesList').innerHTML = notes.map((note, index) => `
+      document.getElementById('notesList').innerHTML = notes.map((note, index) => {
+        const msgs = note.messages || [];
+        const isLoading = msgs.length > 0 && msgs[msgs.length - 1].content === '正在思考…';
+        const canInteract = msgs.length > 0 && !isLoading;
+        const btnLabel = note.type === 'self' ? '💬 评论' : '💬 继续讨论';
+
+        const bubblesHtml = msgs.map(m => {
+          const isUser = m.role === 'user';
+          const wrapClass = isUser ? 'msg-user-wrap' : 'msg-ai-wrap';
+          const bubClass = isUser ? 'msg-bubble msg-user' : 'msg-bubble msg-ai';
+          const label = isUser ? '我' : 'AI';
+          return `<div class="${wrapClass}">
+            <div class="msg-label">${label}</div>
+            <div class="${bubClass}">${m.content}</div>
+          </div>`;
+        }).join('');
+
+        return `
         <div class="note-card">
           <button class="delete-btn" onclick="deleteNote(${index})" title="删除">×</button>
           <div class="note-highlight" onclick="locateHighlight('${note.id}')" style="cursor:pointer;" title="定位到原文">"${note.highlightedText.slice(0, 80)}${note.highlightedText.length > 80 ? '…' : ''}"</div>
-          ${note.aiComment ? `<div class="note-comment">${note.aiComment}</div>` : ''}
-          ${note.aiComment && !note.aiComment.includes('正在') ? `<button class="menu-btn" onclick="continueDiscussion(${index})" style="margin-top:8px;padding:6px 12px;font-size:12px;">💬 继续讨论</button>` : ''}
+          ${bubblesHtml ? `<div class="note-messages">${bubblesHtml}</div>` : ''}
+          ${canInteract ? `<button class="menu-btn" onclick="continueDiscussion(${index})" style="margin-top:8px;padding:6px 12px;font-size:12px;">${btnLabel}</button>` : ''}
           <div class="note-time">${note.timestamp}</div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
 
     function locateHighlight(noteId) {
@@ -1104,7 +1169,8 @@
     }
 
     async function triggerAiComment(note) {
-      note.aiComment = '正在思考…';
+      if (!note.messages) note.messages = [];
+      note.messages.push({ role: 'ai', content: '正在思考…' });
       renderNotes();
       const text = window.chapters[currentChapter.index].text;
       const pos = text.indexOf(note.highlightedText);
@@ -1124,9 +1190,9 @@
           })
         });
         const data = await res.json();
-        note.aiComment = data.comment || data.error || 'AI 调用失败';
+        note.messages[note.messages.length - 1].content = data.comment || data.error || 'AI 调用失败';
       } catch {
-        note.aiComment = '网络错误，请重试';
+        note.messages[note.messages.length - 1].content = '网络错误，请重试';
       }
       renderNotes();
       persistNotes();
@@ -1139,16 +1205,24 @@
       }
 
       const note = notes[index];
-      const question = await showDialog('继续讨论什么？', '输入你的问题或想法');
+      const isSelf = note.type === 'self';
+      const question = await showDialog(isSelf ? '写下你对这段评论的想法' : '继续讨论什么？', '输入你的问题或想法');
 
       if (question) {
-        const originalComment = note.aiComment;
-        note.aiComment = originalComment + '\n\n正在思考…';
+        if (!note.messages) note.messages = [];
+        note.messages.push({ role: 'user', content: question });
+        note.messages.push({ role: 'ai', content: '正在思考…' });
         renderNotes();
 
         const text = window.chapters[currentChapter.index].text;
         const pos = text.indexOf(note.highlightedText);
         const surrounding = text.slice(Math.max(0, pos - 300), Math.min(text.length, pos + 300));
+
+        // 构建对话历史（排除最后一条"正在思考"）
+        const history = note.messages.slice(0, -1).map(m => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.content
+        }));
 
         try {
           const res = await authFetch(`${API_BASE}/api/ai/comment`, {
@@ -1160,14 +1234,14 @@
               highlightedText: note.highlightedText,
               surroundingText: surrounding,
               previousInsights: [],
-              conversationHistory: [{ role: 'assistant', content: originalComment }, { role: 'user', content: question }],
+              conversationHistory: history,
               userApiConfig
             })
           });
           const data = await res.json();
-          note.aiComment = originalComment + '\n\n> ' + question + '\n\n' + (data.comment || data.error || 'AI 调用失败');
+          note.messages[note.messages.length - 1].content = data.comment || data.error || 'AI 调用失败';
         } catch {
-          note.aiComment = originalComment + '\n\n网络错误，请重试';
+          note.messages[note.messages.length - 1].content = '网络错误，请重试';
         }
         renderNotes();
         persistNotes();
@@ -1193,22 +1267,24 @@
 
     function exportNotes() {
       const format = document.getElementById('exportFormat').value;
-      const includeContext = document.getElementById('includeContext').checked;
 
       let content = '';
       const bookTitle = currentBook.name;
       const timestamp = new Date().toLocaleString('zh-CN');
 
+      function msgsToText(messages) {
+        if (!messages || messages.length === 0) return '';
+        return messages.map(m => (m.role === 'user' ? '我：' : 'AI：') + m.content).join('\n\n');
+      }
+
       if (format === 'md') {
         content = `# ${bookTitle}\n\n> 导出时间：${timestamp}\n\n`;
         notes.forEach(note => {
           content += `## ${note.chapterTitle}\n\n`;
-          if (includeContext && note.contextText) {
-            content += `**上下文：**\n> ...${note.contextText}...\n\n`;
-          }
           content += `**划线原文：**\n> ${note.highlightedText}\n\n`;
-          if (note.aiComment) {
-            content += `**评论/笔记：**\n${note.aiComment.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
+          const msgText = msgsToText(note.messages);
+          if (msgText) {
+            content += `**评论/笔记：**\n${msgText.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
           }
           content += `*${note.timestamp}*\n\n---\n\n`;
         });
@@ -1222,7 +1298,6 @@
     body { font-family: 'Noto Serif SC', serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.8; color: #2d3436; }
     h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
     .note { margin: 30px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid #0984e3; border-radius: 4px; }
-    .context { color: #636e72; font-style: italic; font-size: 0.95em; margin-bottom: 12px; padding: 8px; background: #f1f2f6; border-radius: 4px; }
     .highlight { color: #d63031; font-weight: 600; margin-bottom: 15px; border-bottom: 1px dashed #d63031; display: inline-block; }
     .comment { margin-left: 30px; color: #2d3436; white-space: pre-wrap; border-left: 3px solid #dfe6e9; padding-left: 15px; margin-top: 15px; }
     .time { color: #b2bec3; font-size: 0.85em; margin-top: 15px; }
@@ -1233,27 +1308,25 @@
   <p style="color:#b2bec3;">导出时间：${timestamp}</p>
 `;
         notes.forEach(note => {
+          const msgText = msgsToText(note.messages);
           content += `  <div class="note">
     <h2>${note.chapterTitle}</h2>
-    ${includeContext && note.contextText ? `<div class="context">...${note.contextText}...</div>` : ''}
     <div class="highlight">"${note.highlightedText}"</div>
-    ${note.aiComment ? `<div class="comment">${note.aiComment}</div>` : ''}
+    ${msgText ? `<div class="comment">${msgText}</div>` : ''}
     <div class="time">${note.timestamp}</div>
   </div>\n`;
         });
         content += `</body>\n</html>`;
       } else if (format === 'txt') {
-        content = `${bookTitle}\n导出时间：${timestamp}\n\n${'=' .repeat(50)}\n\n`;
+        content = `${bookTitle}\n导出时间：${timestamp}\n\n${'='.repeat(50)}\n\n`;
         notes.forEach(note => {
           content += `${note.chapterTitle}\n\n`;
-          if (includeContext && note.contextText) {
-            content += `[上下文]：...${note.contextText}...\n\n`;
-          }
           content += `[划线原文]：${note.highlightedText}\n\n`;
-          if (note.aiComment) {
-            content += `[评论/笔记]：\n${note.aiComment.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
+          const msgText = msgsToText(note.messages);
+          if (msgText) {
+            content += `[评论/笔记]：\n${msgText.split('\n').map(line => '    ' + line).join('\n')}\n\n`;
           }
-          content += `时间：${note.timestamp}\n\n${'-' .repeat(50)}\n\n`;
+          content += `时间：${note.timestamp}\n\n${'-'.repeat(50)}\n\n`;
         });
       }
 

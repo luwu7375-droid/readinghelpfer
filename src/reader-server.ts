@@ -136,8 +136,11 @@ app.post('/api/notes/export', authMiddleware, async (req, res) => {
   const { bookTitle, notes } = req.body;
   let content = `# ${bookTitle}\n\n> 最后更新：${new Date().toLocaleString('zh-CN')}\n\n`;
   for (const note of notes) {
-    content += `## ${note.chapterTitle}\n\n> ${note.highlightedText}\n\n${note.aiComment}\n\n`;
-    if (note.userAnnotation) content += `**我的批注**：${note.userAnnotation}\n\n`;
+    content += `## ${note.chapterTitle}\n\n> ${note.highlightedText}\n\n`;
+    const msgs: Array<{role: string, content: string}> = note.messages || [];
+    if (msgs.length > 0) {
+      content += msgs.map((m: {role: string, content: string}) => (m.role === 'user' ? '我：' : 'AI：') + m.content).join('\n\n') + '\n\n';
+    }
     content += `*${note.timestamp}*\n\n---\n\n`;
   }
   res.setHeader('Content-Type', 'text/markdown');
