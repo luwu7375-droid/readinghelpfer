@@ -49,6 +49,11 @@ export async function initDB(dbPath: string = 'data/app.db') {
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (book_id) REFERENCES books(id)
       );
+      CREATE TABLE user_data (
+        user_id INTEGER PRIMARY KEY,
+        data TEXT NOT NULL DEFAULT '{}',
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
     `);
   }
 
@@ -96,7 +101,7 @@ export function getBooksByUser(userId: number) {
     id: row[0],
     user_id: row[1],
     filename: row[2],
-    original_name: row[3],
+    name: row[3].replace(/\.[^.]+$/, ''),
     size: row[4],
     uploaded_at: row[5]
   }));
@@ -126,5 +131,16 @@ export function getProgress(userId: number, bookFilename: string) {
 export async function saveProgress(userId: number, bookFilename: string, chapterIndex: number, scrollPosition: number) {
   db.run(`INSERT OR REPLACE INTO reading_progress (user_id, book_filename, chapter_index, scroll_position, updated_at)
     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`, [userId, bookFilename, chapterIndex, scrollPosition]);
+  await saveDB('data/app.db');
+}
+
+export function getUserData(userId: number): any {
+  const result = db.exec('SELECT data FROM user_data WHERE user_id = ?', [userId]);
+  if (result.length === 0) return {};
+  try { return JSON.parse(result[0].values[0][0] as string); } catch { return {}; }
+}
+
+export async function saveUserData(userId: number, data: any) {
+  db.run('INSERT OR REPLACE INTO user_data (user_id, data) VALUES (?, ?)', [userId, JSON.stringify(data)]);
   await saveDB('data/app.db');
 }

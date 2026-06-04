@@ -327,11 +327,28 @@
   </style>
 </head>
 <body>
+  <div id="authOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--paper);z-index:9999;align-items:center;justify-content:center;">
+    <div style="width:360px;padding:32px;border:1px solid var(--divider);border-radius:8px;">
+      <h3 style="margin-bottom:24px;color:var(--ink);text-align:center;" id="authTitle">登录</h3>
+      <div style="margin-bottom:12px;">
+        <input id="authEmail" type="email" placeholder="邮箱" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <input id="authPassword" type="password" placeholder="密码" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
+      <div id="authError" style="display:none;margin-bottom:12px;padding:8px;border-radius:4px;background:oklch(92% 0.08 30);color:oklch(45% 0.12 30);font-size:13px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="save-btn" onclick="submitAuth()" style="flex:1;" id="authSubmitBtn">登录</button>
+        <button class="menu-btn" onclick="toggleAuthMode()" style="flex:1;" id="authToggleBtn">注册</button>
+      </div>
+    </div>
+  </div>
   <div class="container">
     <div class="sidebar">
       <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">◐</button>
       <button class="theme-toggle" onclick="openSettings()" title="API 设置" style="margin-left:8px">⚙️</button>
       <button class="theme-toggle" onclick="openReadingSettings()" title="阅读设置" style="margin-left:8px">📖</button>
+      <button class="theme-toggle" onclick="logout()" title="退出登录" style="margin-left:8px">⏻</button>
       <h2>书库</h2>
       <input type="file" id="uploadBook" accept=".epub" style="display:none" onchange="uploadBook()">
       <button class="save-btn" onclick="document.getElementById('uploadBook').click()" style="margin-bottom:12px;width:100%">+ 添加书籍</button>
@@ -473,6 +490,46 @@
   <script>
     const API_BASE = window.location.origin;
 
+    let authToken = localStorage.getItem('authToken');
+    let authMode = 'login';
+
+    function authFetch(url, options = {}) {
+      return fetch(url, {
+        ...options,
+        headers: { ...options.headers, 'Authorization': `Bearer ${authToken}` }
+      });
+    }
+
+    async function submitAuth() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const errEl = document.getElementById('authError');
+      errEl.style.display = 'none';
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/${authMode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+        authToken = data.token;
+        localStorage.setItem('authToken', authToken);
+        document.getElementById('authOverlay').style.display = 'none';
+        loadProgress().then(loadBooks);
+      } catch {
+        errEl.textContent = '网络错误'; errEl.style.display = 'block';
+      }
+    }
+
+    function toggleAuthMode() {
+      authMode = authMode === 'login' ? 'register' : 'login';
+      document.getElementById('authTitle').textContent = authMode === 'login' ? '登录' : '注册';
+      document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? '登录' : '注册';
+      document.getElementById('authToggleBtn').textContent = authMode === 'login' ? '注册' : '返回登录';
+    }
+
+    document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
     let currentBook = null;
     let currentChapter = null;
     let notes = [];
@@ -684,13 +741,25 @@
       if (!file) return;
       const formData = new FormData();
       formData.append('file', file);
-      await fetch(`${API_BASE}/api/books/upload`, { method: 'POST', body: formData });
+      let res;
+      try {
+        res = await authFetch(`${API_BASE}/api/books/upload`, { method: 'POST', body: formData });
+      } catch {
+        alert('上传失败: 无法连接服务器，请确认服务正在运行');
+        document.getElementById('uploadBook').value = '';
+        return;
+      }
       document.getElementById('uploadBook').value = '';
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert('上传失败: ' + (data.error || res.status));
+        return;
+      }
       loadBooks();
     }
 
     async function loadProgress() {
-      const res = await fetch(`${API_BASE}/api/progress`);
+      const res = await authFetch(`${API_BASE}/api/progress`);
       const data = await res.json();
       progress = data.progress || {};
       bookmarks = data.bookmarks || {};
@@ -698,7 +767,7 @@
     }
 
     async function saveProgress() {
-      await fetch(`${API_BASE}/api/progress`, {
+      await authFetch(`${API_BASE}/api/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ progress, bookmarks, allNotes })
@@ -711,7 +780,7 @@
     }
 
     async function loadBooks() {
-      const res = await fetch(`${API_BASE}/api/books`);
+      const res = await authFetch(`${API_BASE}/api/books`);
       const books = await res.json();
       document.getElementById('bookList').innerHTML = books.map(book =>
         `<div class="book-item" onclick="loadChapters('${encodeURIComponent(book.filename)}', '${book.name}')" style="display:flex;justify-content:space-between;align-items:center;">
@@ -723,8 +792,8 @@
 
     async function deleteBook(filename) {
       if (!confirm('确认删除这本书？')) return;
-      const deletingCurrent = currentBook && currentBook.filename === decodeURIComponent(filename);
-      await fetch(`${API_BASE}/api/books/${filename}`, { method: 'DELETE' });
+      const deletingCurrent = currentBook && currentBook.filename === filename;
+      await authFetch(`${API_BASE}/api/books/${filename}`, { method: 'DELETE' });
 
       if (deletingCurrent) {
         currentBook = null;
@@ -732,7 +801,7 @@
         document.getElementById('chapterList').innerHTML = '';
 
         // 取剩余书单，自动切换
-        const res = await fetch(`${API_BASE}/api/books`);
+        const res = await authFetch(`${API_BASE}/api/books`);
         const books = await res.json();
         if (books.length > 0) {
           const next = books[books.length - 1]; // 优先切到最后一本（即"上一本"）
@@ -754,7 +823,7 @@
 
     async function loadChapters(filename, bookName) {
       currentBook = { filename, name: bookName };
-      const res = await fetch(`${API_BASE}/api/books/${filename}/chapters`);
+      const res = await authFetch(`${API_BASE}/api/books/${filename}/chapters`);
       const chapters = await res.json();
       document.getElementById('chapterList').innerHTML = chapters.map((ch, i) =>
         `<div class="chapter-item" onclick="loadChapter(${i}, '${ch.title}')">${ch.title}</div>`
@@ -1036,7 +1105,7 @@
 
         const conversationHistory = note.pendingAI ? [] : [{ role: 'assistant', content: originalComment }, { role: 'user', content: question }];
 
-        const res = await fetch(`${API_BASE}/api/ai/comment`, {
+        const res = await authFetch(`${API_BASE}/api/ai/comment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1063,7 +1132,7 @@
     }
 
     async function saveNotes() {
-      await fetch(`${API_BASE}/api/notes/save`, {
+      await authFetch(`${API_BASE}/api/notes/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookTitle: currentBook.name, notes })
@@ -1159,6 +1228,12 @@
       closeExportDialog();
     }
 
+    function logout() {
+      localStorage.removeItem('authToken');
+      authToken = null;
+      document.getElementById('authOverlay').style.display = 'flex';
+    }
+
     function toggleTheme() {
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
@@ -1169,7 +1244,11 @@
     }
 
     applyReadingSettings();
-    loadProgress().then(loadBooks);
+    if (authToken) {
+      loadProgress().then(loadBooks);
+    } else {
+      document.getElementById('authOverlay').style.display = 'flex';
+    }
   </script>
 </body>
 </html>

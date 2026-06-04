@@ -76,12 +76,29 @@ app.delete('/api/books/:filename', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/progress', authMiddleware, async (req, res) => {
-  await db.saveProgress((req as any).userId, req.body.bookFilename, req.body.chapterIndex, req.body.scrollPosition);
+  await db.saveUserData((req as any).userId, req.body);
   res.json({ success: true });
 });
 
 app.get('/api/progress', authMiddleware, async (req, res) => {
-  res.json(db.getProgress((req as any).userId, req.query.bookFilename as string) || {});
+  res.json(db.getUserData((req as any).userId));
+});
+
+app.post('/api/ai/test', async (req, res) => {
+  const { apiKey, baseUrl, model } = req.body;
+  if (!apiKey) return res.status(400).json({ error: '缺少 API Key' });
+  try {
+    const testAI = new AIClient(apiKey, baseUrl, apiKey, baseUrl);
+    const testPipeline = new ReadingPipeline(testAI, model, model);
+    await testPipeline.generateComment({
+      bookOutline: 'Test', chapterSummary: 'Test',
+      highlightedText: 'Hello', surroundingText: 'Hello world',
+      previousInsights: []
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'API 调用失败' });
+  }
 });
 
 app.post('/api/ai/comment', authMiddleware, aiLimiter, async (req, res) => {
