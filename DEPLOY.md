@@ -1,74 +1,32 @@
-# Railway 部署指南
+# 部署说明
 
-## 快速部署步骤
+## 环境变量
 
-### 方法 1: 通过 GitHub 部署（推荐）
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `PORT` | 否 | 监听端口，默认 `3000` |
+| `JWT_SECRET` | **生产必填** | JWT 签名密钥，必须是强随机值。未设置时生产环境启动会报错退出 |
+| `DATABASE_URL` | 否 | SQLite 文件路径，默认 `data/app.db` |
+| `INVITE_CODE` | 否 | 注册邀请码。设置后注册必须提供匹配的邀请码。留空则不校验（本地开发） |
 
-1. **创建 GitHub 仓库**
-   - 访问 https://github.com/new
-   - 仓库名: `ai-reading-system`
-   - 设为 Public
-   - 不要添加 README、.gitignore 或 license（我们已经有了）
-   - 点击 "Create repository"
+## 持久化目录
 
-2. **推送代码到 GitHub**
+云端部署必须将以下路径挂载为持久化卷，否则重启后数据丢失：
 
-   在终端运行：
-   ```bash
-   git remote add origin https://github.com/你的用户名/ai-reading-system.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-3. **部署到 Railway**
-   - 访问 https://railway.app
-   - 用 GitHub 账号登录
-   - 点击 "New Project"
-   - 选择 "Deploy from GitHub repo"
-   - 选择 `ai-reading-system` 仓库
-   - Railway 会自动检测并部署
-
-4. **设置环境变量**
-
-   在 Railway 项目设置中添加：
-   ```
-   CHEAP_API_KEY=你的API密钥
-   CHEAP_BASE_URL=https://api.example.com
-   MAIN_API_KEY=你的API密钥
-   MAIN_BASE_URL=https://api.example.com
-   CHEAP_MODEL=gpt-3.5-turbo
-   MAIN_MODEL=gpt-4
-   OBSIDIAN_VAULT_PATH=/tmp/obsidian
-   ```
-
-5. **获取部署地址**
-   - 部署完成后，点击 "Settings" → "Networking"
-   - 点击 "Generate Domain"
-   - 会得到一个公开地址，如: `https://your-app.railway.app`
-
-### 方法 2: 通过 Railway CLI 部署
-
-在终端运行：
-```bash
-# 登录（会打开浏览器）
-railway login
-
-# 初始化项目
-railway init
-
-# 部署
-railway up
-
-# 获取部署地址
-railway domain
+```
+data/app.db        # SQLite 数据库（用户、书单、阅读进度、笔记）
+data/books/        # 用户上传的 epub 文件
 ```
 
-## 部署后
+## 启动
 
-访问生成的公开地址即可使用，可以在任何设备上访问！
+```bash
+npm install
+npm start
+```
 
-## 注意事项
+## 安全提示
 
-- 免费版有 500 小时/月的限制
-- 上传的书籍会在服务重启后丢失（存储在 /tmp 目录）
-- 如需持久化存储，需要添加 Volume 存储卷
+- 生产环境务必设置 `JWT_SECRET`（随机长字符串）
+- API Key 仅存于用户浏览器的 `localStorage`，不进入数据库
+- 建议在反向代理层（nginx / Caddy）配置 HTTPS

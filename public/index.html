@@ -367,6 +367,9 @@
       <div style="margin-bottom:16px;">
         <input id="authPassword" type="password" placeholder="密码" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
       </div>
+      <div id="authInviteWrap" style="display:none;margin-bottom:16px;">
+        <input id="authInviteCode" type="text" placeholder="邀请码" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+      </div>
       <div id="authError" style="display:none;margin-bottom:12px;padding:8px;border-radius:4px;background:oklch(92% 0.08 30);color:oklch(45% 0.12 30);font-size:13px;"></div>
       <div style="display:flex;gap:8px;">
         <button class="save-btn" onclick="submitAuth()" style="flex:1;" id="authSubmitBtn">登录</button>
@@ -537,13 +540,16 @@
     async function submitAuth() {
       const email = document.getElementById('authEmail').value.trim();
       const password = document.getElementById('authPassword').value;
+      const inviteCode = document.getElementById('authInviteCode').value.trim();
       const errEl = document.getElementById('authError');
       errEl.style.display = 'none';
       try {
+        const body = { email, password };
+        if (authMode === 'register') body.inviteCode = inviteCode;
         const res = await fetch(`${API_BASE}/api/auth/${authMode}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify(body)
         });
         const text = await res.text();
         let data;
@@ -566,6 +572,8 @@
       document.getElementById('authTitle').textContent = authMode === 'login' ? '登录' : '注册';
       document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? '登录' : '注册';
       document.getElementById('authToggleBtn').textContent = authMode === 'login' ? '注册' : '返回登录';
+      document.getElementById('authInviteWrap').style.display = authMode === 'register' ? 'block' : 'none';
+      document.getElementById('authInviteCode').value = '';
     }
 
     document.getElementById('authPassword').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });

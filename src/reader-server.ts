@@ -22,8 +22,11 @@ const upload = multer({ dest: '/tmp/' });
 await db.initDB();
 
 app.post('/api/auth/register', registerLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, inviteCode } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  if (process.env.INVITE_CODE && inviteCode !== process.env.INVITE_CODE) {
+    return res.status(403).json({ error: '邀请码错误' });
+  }
   if (db.getUserByEmail(email)) return res.status(400).json({ error: 'Email already exists' });
   const userId = await db.createUser(email, await hashPassword(password));
   res.json({ token: generateJWT(userId), userId });
