@@ -108,6 +108,8 @@ export function getBooksByUser(userId: number) {
 }
 
 export async function createBook(userId: number, filename: string, originalName: string, size: number) {
+  const exists = db.exec('SELECT id FROM books WHERE user_id = ? AND filename = ?', [userId, filename]);
+  if (exists.length > 0) return;
   db.run('INSERT INTO books (user_id, filename, original_name, size) VALUES (?, ?, ?, ?)',
     [userId, filename, originalName, size]);
   await saveDB('data/app.db');

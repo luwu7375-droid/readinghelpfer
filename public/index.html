@@ -972,7 +972,7 @@
           const comment = await showDialog('写下你的想法');
           if (comment) note.aiComment = comment;
         } else if (type === 'ai') {
-          if (!userApiConfig.apiKey) { alert('请先在设置中配置 API Key'); return; }
+          if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) { alert('请先在设置中配置 API Key'); return; }
           note.aiComment = '[点击"继续讨论"获取 AI 评论]';
           note.pendingAI = true;
         } else if (type === 'discuss') {
@@ -1013,7 +1013,7 @@
         const comment = await showDialog('写下你的想法');
         if (comment) note.aiComment = comment;
       } else if (type === 'ai') {
-        if (!userApiConfig.apiKey) {
+        if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
           alert('请先在设置中配置 API Key');
           return;
         }
@@ -1086,7 +1086,7 @@
     }
 
     async function continueDiscussion(index) {
-      if (!userApiConfig.apiKey) {
+      if (!userApiConfig.cheap?.apiKey && !userApiConfig.main?.apiKey) {
         alert('请先在设置中配置 API Key');
         return;
       }
@@ -1132,12 +1132,17 @@
     }
 
     async function saveNotes() {
-      await authFetch(`${API_BASE}/api/notes/save`, {
+      if (!currentBook || notes.length === 0) { alert('暂无笔记可导出'); return; }
+      const res = await authFetch(`${API_BASE}/api/notes/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookTitle: currentBook.name, notes })
       });
-      alert('已保存至 Obsidian');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${currentBook.name}-笔记.md`; a.click();
+      URL.revokeObjectURL(url);
     }
 
     function openExportDialog() {

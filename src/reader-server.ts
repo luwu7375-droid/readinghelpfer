@@ -104,8 +104,9 @@ app.post('/api/ai/test', async (req, res) => {
 app.post('/api/ai/comment', authMiddleware, aiLimiter, async (req, res) => {
   const { bookTitle, chapterTitle, highlightedText, surroundingText, previousInsights, conversationHistory, userApiConfig } = req.body;
 
-  const mainConfig = userApiConfig.main?.apiKey ? userApiConfig.main : userApiConfig.cheap;
+  if (!userApiConfig) return res.status(400).json({ error: 'Please configure API key' });
   const cheapConfig = userApiConfig.cheap;
+  const mainConfig = userApiConfig.main?.apiKey ? userApiConfig.main : cheapConfig;
 
   if (!cheapConfig?.apiKey && !mainConfig?.apiKey) {
     return res.status(400).json({ error: 'Please configure API key' });
