@@ -777,7 +777,7 @@
 
     function persistNotes() {
       if (currentBook) allNotes[currentBook.name] = notes;
-      saveProgress();
+      return saveProgress();
     }
 
     async function loadBooks() {
@@ -1175,17 +1175,8 @@
     }
 
     async function saveNotes() {
-      if (!currentBook || notes.length === 0) { alert('暂无笔记可导出'); return; }
-      const res = await authFetch(`${API_BASE}/api/notes/export`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookTitle: currentBook.name, notes })
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${currentBook.name}-笔记.md`; a.click();
-      URL.revokeObjectURL(url);
+      await persistNotes();
+      alert('笔记已保存');
     }
 
     function openExportDialog() {
