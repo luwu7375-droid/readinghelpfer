@@ -1546,74 +1546,104 @@
 
     let textSelectionInitialized = false;
     let lastSelectionAt = 0;  // 最近一次有效选区时间戳，防止选词后误触翻页
+    let suppressNextSelectionClear = false;
+
+    function getElementFromNode(node) {
+      if (!node) return null;
+      return node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    }
+
+    function isSelectionInsideReader(selection) {
+      if (!selection || selection.rangeCount === 0) return false;
+      const range = selection.getRangeAt(0);
+      const el = getElementFromNode(range.commonAncestorContainer);
+      return !!el?.closest('#reader');
+    }
 
     function isInteractiveUiTarget(target) {
-      return target && target.closest(
-        '#settingsDialog, #inputDialog, #exportDialog, #readingSettingsDialog, #authOverlay, input, textarea, select, button, [contenteditable="true"]'
+      return target instanceof Element && !!target.closest(
+        '#highlightMenu, #settingsDialog, #inputDialog, #exportDialog, #readingSettingsDialog, #authOverlay, input, textarea, select, button, [contenteditable="true"]'
       );
+    }
+
+    function closeHighlightMenu() {
+      const menu = document.getElementById('highlightMenu');
+      menu.classList.remove('mobile-visible');
+      menu.style.display = 'none';
+    }
+
+    function showHighlightMenu(e) {
+      if (e?.target && isInteractiveUiTarget(e.target)) return;
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+      const text = selection.toString().trim();
+      if (!text || !isSelectionInsideReader(selection)) return;
+
+      selectedText = text;
+      selectedRange = selection.getRangeAt(0).cloneRange();
+      lastSelectionAt = Date.now();
+
+      const menu = document.getElementById('highlightMenu');
+      if (isMobile()) {
+        menu.style.display = '';
+        menu.classList.add('mobile-visible');
+      } else {
+        menu.style.display = 'block';
+        const rect = selectedRange.getBoundingClientRect();
+        menu.style.left = (rect.left + window.scrollX) + 'px';
+        menu.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+      }
+      menu._justOpened = true;
     }
 
     function enableTextSelection() {
       if (textSelectionInitialized) return;
       textSelectionInitialized = true;
 
-      function tryShowHighlightMenu(targetEl) {
-        if (isInteractiveUiTarget(targetEl)) return;
-        const selection = window.getSelection();
-        const text = selection.toString().trim();
-        if (text.length > 5) {
-          // 确认选区锚点在 reader 内
-          const anchor = selection.anchorNode;
-          const readerEl = document.getElementById('reader');
-          if (!readerEl || !readerEl.contains(anchor)) return;
-          selectedText = text;
-          selectedRange = selection.getRangeAt(0);
-          lastSelectionAt = Date.now();
-          const menu = document.getElementById('highlightMenu');
-          if (isMobile()) {
-            menu.classList.add('mobile-visible');
-          } else {
-            menu.style.display = 'block';
-            const rect = selectedRange.getBoundingClientRect();
-            menu.style.left = (rect.left + window.scrollX) + 'px';
-            menu.style.top = (rect.bottom + window.scrollY + 8) + 'px';
-          }
-          menu._justOpened = true;
-        }
-      }
-
       // 桌面：mouseup 后直接读取
       document.addEventListener('mouseup', (e) => {
-        setTimeout(() => tryShowHighlightMenu(e.target), 20);
+        setTimeout(() => showHighlightMenu(e), 20);
       });
 
       // 移动端：touchend 后延迟让浏览器完成选区
+      // passive:true 避免阻塞滚动，suppressNextSelectionClear 防止后续 click 清掉选区
       document.addEventListener('touchend', (e) => {
-        setTimeout(() => tryShowHighlightMenu(e.target), 120);
-      });
+        if (isInteractiveUiTarget(e.target)) return;
+        suppressNextSelectionClear = true;
+        setTimeout(() => {
+          showHighlightMenu(e);
+          setTimeout(() => { suppressNextSelectionClear = false; }, 350);
+        }, 120);
+      }, { passive: true });
 
       // 移动端：selectionchange debounce，更稳定地捕获长按/拖选
       if (isMobile()) {
         let selTimer = null;
         document.addEventListener('selectionchange', () => {
           clearTimeout(selTimer);
-          selTimer = setTimeout(() => tryShowHighlightMenu(null), 200);
+          selTimer = setTimeout(() => showHighlightMenu(null), 200);
         });
       }
 
       document.addEventListener('click', (e) => {
         const menu = document.getElementById('highlightMenu');
         if (menu._justOpened) { menu._justOpened = false; return; }
-        // 点击菜单按钮或输入框时不关闭、不清除选区
-        if (e.target.closest('#highlightMenu') || isInteractiveUiTarget(e.target)) return;
-        menu.classList.remove('mobile-visible');
-        menu.style.display = 'none';
+        if (isInteractiveUiTarget(e.target)) return;
+        if (suppressNextSelectionClear) return;
+
+        // 移动端：如果 reader 内仍有有效选区，不关闭菜单
+        const sel = window.getSelection();
+        if (isMobile() && isSelectionInsideReader(sel) && sel.toString().trim()) return;
+
+        closeHighlightMenu();
         window.getSelection().removeAllRanges();
       });
     }
 
 
     async function handleHighlight(type) {
+      if (!selectedRange || !selectedText) return;
       const menu = document.getElementById('highlightMenu');
       menu.classList.remove('mobile-visible');
       menu.style.display = 'none';
