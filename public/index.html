@@ -184,6 +184,9 @@
       text-indent: 2em;
       position: relative;
       cursor: pointer;
+      user-select: text;
+      -webkit-user-select: text;
+      -webkit-touch-callout: default;
     }
 
     .reader p:hover::before {
@@ -528,16 +531,20 @@
         min-height: calc(100dvh - 48px);
       }
 
-      /* 移动端强制关闭翻页模式，防止横排变竖排 */
+      /* 移动端 page-mode：单列横向分页 */
       .reader.page-mode {
         column-count: unset !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        height: auto !important;
+        column-width: calc(100vw - 32px) !important;
+        column-gap: 32px !important;
+        overflow-x: scroll !important;
+        overflow-y: hidden !important;
+        height: calc(100dvh - 48px) !important;
         width: 100% !important;
         padding: 24px 16px 80px !important;
-        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+        -ms-overflow-style: none !important;
+        scrollbar-width: none !important;
       }
+      .reader.page-mode::-webkit-scrollbar { display: none; }
 
       /* 高亮菜单 → 底部 sheet（移动端） */
       .highlight-menu {
@@ -1008,7 +1015,11 @@
     }
 
     // 拦截函数：阻止用户在 page-mode 下手动滚动（wheel / touchmove）
+    // 但不阻止：有文本选区时、目标在菜单/面板内时（保留选区 handle 拖动）
+    const SCROLL_BLOCK_EXEMPT = '#highlightMenu,#inputDialog,#settingsDialog,#readingSettingsDialog,#notesPanel,.sidebar';
     function blockPageScroll(e) {
+      if (window.getSelection().toString().trim().length > 0) return;
+      if (e.target && e.target.closest && e.target.closest(SCROLL_BLOCK_EXEMPT)) return;
       e.preventDefault();
     }
 
@@ -1030,9 +1041,13 @@
     }
 
     function getPageStep(reader) {
-      // 读取浏览器实际渲染的列宽，步进 = (列宽 + gap) * 2
       const style = getComputedStyle(reader);
       const gap = parseFloat(style.columnGap) || 80;
+      if (isMobile()) {
+        // 手机单列：一屏一页，步进 = 列宽 + gap
+        return reader.clientWidth + gap;
+      }
+      // 桌面双列：步进 = (列宽 + gap) * 2
       const colWidth = (reader.clientWidth - gap) / 2;
       return (colWidth + gap) * 2;
     }
@@ -1040,7 +1055,14 @@
     function handleClickPage(e) {
       if (e.target.closest('#highlightMenu')) return;
       if (e.target.closest('#inputDialog')) return;
-      if (window.getSelection().toString().length > 0) return;
+      if (e.target.closest('#settingsDialog')) return;
+      if (e.target.closest('#readingSettingsDialog')) return;
+      if (e.target.closest('#notesPanel')) return;
+      if (e.target.closest('.sidebar')) return;
+      // 有文本选区时不翻页
+      if (window.getSelection().toString().trim().length > 0) return;
+      // 最近 500ms 内发生过选区操作，不翻页
+      if (Date.now() - lastSelectionAt < 500) return;
 
       const reader = document.getElementById('reader');
       const rect = reader.getBoundingClientRect();
@@ -1051,14 +1073,16 @@
 
       if (clickX > rect.width * 0.5) {
         const next = (currentPage + 1) * step;
-        if (next > maxScroll + 10) {
+        const atEnd = reader.scrollLeft >= maxScroll - 8;
+        if (atEnd) {
           if (currentChapter.index < window.chapters.length - 1)
             loadChapter(currentChapter.index + 1, window.chapters[currentChapter.index + 1].title);
         } else {
           reader.scrollTo({ left: Math.min(next, maxScroll), behavior: 'smooth' });
         }
       } else {
-        if (currentPage <= 0) {
+        const atStart = reader.scrollLeft <= 8;
+        if (atStart) {
           if (currentChapter.index > 0) {
             loadChapter(currentChapter.index - 1, window.chapters[currentChapter.index - 1].title);
             setTimeout(() => { reader.scrollLeft = reader.scrollWidth; }, 100);
@@ -1399,40 +1423,59 @@
     }
 
     let textSelectionInitialized = false;
+    let lastSelectionAt = 0;  // 最近一次有效选区时间戳，防止选词后误触翻页
+
     function enableTextSelection() {
       if (textSelectionInitialized) return;
       textSelectionInitialized = true;
 
-      function showHighlightMenu(e) {
+      function tryShowHighlightMenu(targetEl) {
         const selection = window.getSelection();
-        selectedText = selection.toString().trim();
-        if (selectedText.length > 5 && e.target.closest('#reader')) {
+        const text = selection.toString().trim();
+        if (text.length > 5) {
+          // 确认选区锚点在 reader 内
+          const anchor = selection.anchorNode;
+          const readerEl = document.getElementById('reader');
+          if (!readerEl || !readerEl.contains(anchor)) return;
+          selectedText = text;
           selectedRange = selection.getRangeAt(0);
+          lastSelectionAt = Date.now();
           const menu = document.getElementById('highlightMenu');
           if (isMobile()) {
-            // 底部 sheet 模式
             menu.classList.add('mobile-visible');
           } else {
             menu.style.display = 'block';
-            const pageX = e.pageX !== undefined ? e.pageX : (e.changedTouches ? e.changedTouches[0].pageX : 0);
-            const pageY = e.pageY !== undefined ? e.pageY : (e.changedTouches ? e.changedTouches[0].pageY : 0);
-            menu.style.left = pageX + 'px';
-            menu.style.top = (pageY + 20) + 'px';
+            const rect = selectedRange.getBoundingClientRect();
+            menu.style.left = (rect.left + window.scrollX) + 'px';
+            menu.style.top = (rect.bottom + window.scrollY + 8) + 'px';
           }
           menu._justOpened = true;
         }
       }
 
-      document.addEventListener('mouseup', showHighlightMenu);
-      // 移动端 touchend 支持划词
-      document.addEventListener('touchend', (e) => {
-        // 延迟一帧让浏览器更新 selection
-        setTimeout(() => showHighlightMenu(e), 80);
+      // 桌面：mouseup 后直接读取
+      document.addEventListener('mouseup', (e) => {
+        setTimeout(() => tryShowHighlightMenu(e.target), 20);
       });
+
+      // 移动端：touchend 后延迟让浏览器完成选区
+      document.addEventListener('touchend', (e) => {
+        setTimeout(() => tryShowHighlightMenu(e.target), 120);
+      });
+
+      // 移动端：selectionchange debounce，更稳定地捕获长按/拖选
+      if (isMobile()) {
+        let selTimer = null;
+        document.addEventListener('selectionchange', () => {
+          clearTimeout(selTimer);
+          selTimer = setTimeout(() => tryShowHighlightMenu(null), 200);
+        });
+      }
 
       document.addEventListener('click', (e) => {
         const menu = document.getElementById('highlightMenu');
         if (menu._justOpened) { menu._justOpened = false; return; }
+        // 点击菜单按钮或输入框时不关闭、不清除选区
         if (e.target.closest('#highlightMenu') || e.target.closest('#inputDialog')) return;
         menu.classList.remove('mobile-visible');
         menu.style.display = 'none';
