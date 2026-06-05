@@ -762,13 +762,30 @@
           <option value="click">点击翻页</option>
         </select>
       </div>
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:12px;">
         <label style="display:block;margin-bottom:8px;color:var(--ink-fade);font-size:13px;">字体</label>
         <select id="fontFamily" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
           <option value="'Noto Serif SC', 'Merriweather', serif">思源宋体（默认）</option>
           <option value="'LXGW WenKai', 'Noto Serif SC', serif">霞鹜文楷</option>
           <option value="'Songti SC', 'SimSun', serif">宋体</option>
           <option value="'Kaiti SC', 'KaiTi', serif">楷体</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="display:block;margin-bottom:8px;color:var(--ink-fade);font-size:13px;">字体大小</label>
+        <select id="fontSize" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+          <option value="">默认</option>
+          <option value="15px">小（15px）</option>
+          <option value="17px">中（17px）</option>
+          <option value="19px">大（19px）</option>
+          <option value="22px">特大（22px）</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:8px;color:var(--ink-fade);font-size:13px;">主题</label>
+        <select id="themeSelect" style="width:100%;padding:10px;border:1px solid var(--divider);border-radius:4px;font-family:inherit;color:var(--ink);background:var(--paper);box-sizing:border-box;">
+          <option value="light">白天</option>
+          <option value="dark">夜间</option>
         </select>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -972,7 +989,7 @@
       const reader = document.getElementById('reader');
       if (!reader) return;
       reader.style.fontFamily = readingSettings.fontFamily || '';
-      if (readingSettings.fontSize) reader.style.fontSize = readingSettings.fontSize;
+      reader.style.fontSize = readingSettings.fontSize || '';
       if (readingSettings.theme) {
         document.body.classList.toggle('dark', readingSettings.theme === 'dark');
       }
@@ -1004,7 +1021,7 @@
 
       applyReadingSettings();
 
-      if (readingSettings.pageMode === 'click' && !isMobile()) {
+      if (readingSettings.pageMode === 'click') {
         reader.addEventListener('click', handleClickPage);
         // 禁止触控板/鼠标横向滑动
         reader.addEventListener('wheel', blockPageScroll, { passive: false });
@@ -1055,6 +1072,8 @@
     function openReadingSettings() {
       document.getElementById('pageMode').value = readingSettings.pageMode || 'scroll';
       document.getElementById('fontFamily').value = readingSettings.fontFamily || DEFAULT_READING_SETTINGS.fontFamily;
+      document.getElementById('fontSize').value = readingSettings.fontSize || '';
+      document.getElementById('themeSelect').value = readingSettings.theme || (document.body.classList.contains('dark') ? 'dark' : 'light');
       document.getElementById('readingSettingsDialog').style.display = 'flex';
     }
 
@@ -1071,7 +1090,8 @@
       readingSettings = {
         pageMode: document.getElementById('pageMode').value,
         fontFamily: document.getElementById('fontFamily').value,
-        theme: document.body.classList.contains('dark') ? 'dark' : 'light'
+        fontSize: document.getElementById('fontSize').value,
+        theme: document.getElementById('themeSelect').value
       };
       persistReadingSettings();
       applyReadingSettings();
@@ -1502,17 +1522,10 @@
       span.textContent = selectedText;
       span.dataset.noteId = noteId;
       try {
-        // 用 surroundContents 直接包裹选区，不删除原文
         selectedRange.surroundContents(span);
       } catch (e) {
-        // surroundContents 要求选区不跨越部分节点；失败时降级为纯文本替换
-        try {
-          const rangeClone = selectedRange.cloneRange();
-          rangeClone.deleteContents();
-          rangeClone.insertNode(span);
-        } catch (e2) {
-          console.warn('highlight insert failed', e2);
-        }
+        // surroundContents 失败（选区跨节点边界）：降级为只记录笔记，不插入高亮
+        console.warn('highlight surroundContents failed, note-only fallback', e);
       }
 
       const note = {
@@ -1830,22 +1843,10 @@
       persistReadingSettings();
     }
 
-    // 移动端初始化：在 initMobile 里覆盖 saveReadingSettings，强制移动端保持 scroll 模式
+    // 移动端初始化
     (function initMobile() {
       if (!isMobile()) return;
       document.getElementById('sidebarCloseBtn').style.display = 'none';
-      // 移动端保存设置时强制 scroll 模式
-      const origSaveRS = saveReadingSettings;
-      saveReadingSettings = function() {
-        document.getElementById('pageMode').value = 'scroll';
-        origSaveRS();
-        const reader = document.getElementById('reader');
-        if (reader) {
-          reader.classList.remove('page-mode');
-          reader.style.overflowY = '';
-          reader.style.overflowX = '';
-        }
-      };
     })();
 
     // 登录成功后加载用户的阅读设置并应用
