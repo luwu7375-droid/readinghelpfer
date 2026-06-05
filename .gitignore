@@ -6,3 +6,4 @@ data/books/*
 !data/books/.gitkeep
 data/app.db
 legacy/kavita-config/*
+kavita-config/
