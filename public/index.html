@@ -53,7 +53,7 @@
       position: relative;
     }
 
-    .main { flex: 1; display: flex; flex-direction: column; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
     .reader {
       flex: 1;
@@ -67,7 +67,7 @@
     }
 
     .reader.page-mode {
-      height: calc(100vh - 80px);
+      height: calc(100vh - 44px);
       overflow-y: hidden !important;
       overflow-x: scroll !important;
       column-count: 2;
@@ -359,6 +359,41 @@
 
     /* ─── 移动端适配 ─────────────────────────────────── */
 
+    /* 顶部书名栏（桌面+移动端共用） */
+    .reading-topbar {
+      display: flex;
+      align-items: center;
+      height: 44px;
+      padding: 0 20px;
+      background: var(--paper);
+      border-bottom: 1px solid var(--divider);
+      font-size: 14px;
+      color: var(--ink-fade);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+      gap: 6px;
+    }
+    .reading-topbar .rt-book {
+      font-weight: 600;
+      color: var(--ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 40%;
+    }
+    .reading-topbar .rt-sep {
+      color: var(--ink-lighter);
+      flex-shrink: 0;
+    }
+    .reading-topbar .rt-chapter {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
     /* 顶部导航栏（移动端专用，桌面默认隐藏） */
     .mobile-topbar {
       display: none;
@@ -476,6 +511,10 @@
       .main {
         display: block;
         min-height: 100dvh;
+      }
+      /* 移动端隐藏桌面书名栏 */
+      .reading-topbar {
+        display: none !important;
       }
 
       /* reader：全宽，滚动模式，字号适配 */
@@ -609,6 +648,12 @@
     </div>
 
     <div class="main">
+      <!-- 桌面端书名+章节栏 -->
+      <div class="reading-topbar" id="readingTopbar">
+        <span class="rt-book" id="topbarBook">阅读助手</span>
+        <span class="rt-sep" id="topbarSep" style="display:none;">/</span>
+        <span class="rt-chapter" id="topbarChapter"></span>
+      </div>
       <div class="reader" id="reader">
         <div class="empty-state">静候书页翻开</div>
       </div>
@@ -771,13 +816,39 @@
       document.getElementById('drawerMask').classList.remove('active');
     }
 
+    // 更新顶部书名栏（桌面 + 移动端）
+    function updateTopbar(bookName, chapterTitle) {
+      // 桌面端书名栏
+      const bookEl = document.getElementById('topbarBook');
+      const sepEl = document.getElementById('topbarSep');
+      const chapEl = document.getElementById('topbarChapter');
+      if (bookEl) bookEl.textContent = bookName || '阅读助手';
+      if (chapterTitle) {
+        if (sepEl) sepEl.style.display = '';
+        if (chapEl) chapEl.textContent = chapterTitle;
+      } else {
+        if (sepEl) sepEl.style.display = 'none';
+        if (chapEl) chapEl.textContent = '';
+      }
+      // 移动端顶栏
+      const titleEl = document.getElementById('mobileTitle');
+      if (titleEl) {
+        if (bookName && chapterTitle) {
+          titleEl.textContent = chapterTitle;
+          titleEl.title = `《${bookName}》 / ${chapterTitle}`;
+        } else {
+          titleEl.textContent = bookName || chapterTitle || '阅读助手';
+          titleEl.title = '';
+        }
+      }
+    }
+
     // 章节加载时关闭 sidebar 并更新顶栏书名
     function mobileOnChapterLoad(bookName, chapterTitle) {
       if (isMobile()) {
         closeSidebar();
-        const titleEl = document.getElementById('mobileTitle');
-        if (titleEl) titleEl.textContent = chapterTitle || bookName || '阅读助手';
       }
+      updateTopbar(bookName, chapterTitle);
     }
     /* ─────────────────────────────────────────────────── */
 
@@ -822,9 +893,8 @@
         currentUserId = String(data.userId);
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('currentUserId', currentUserId);
-        loadApiConfig();
         document.getElementById('authOverlay').style.display = 'none';
-        loadProgress().then(loadBooks);
+        onLoginSuccess();
       } catch {
         errEl.textContent = '无法连接服务器，请确认服务正在运行'; errEl.style.display = 'block';
       }
@@ -865,28 +935,80 @@
       userApiConfig = stored;
     }
     loadApiConfig();
-    let readingSettings = JSON.parse(localStorage.getItem('readingSettings') || '{"pageMode":"scroll","fontFamily":"\'Noto Serif SC\', \'Merriweather\', serif"}');
+
+    const DEFAULT_READING_SETTINGS = {
+      pageMode: 'scroll',
+      fontFamily: "'Noto Serif SC', 'Merriweather', serif",
+      fontSize: '',
+      theme: ''
+    };
+
+    // 从 localStorage 读取阅读设置（优先按用户隔离，fallback 全局）
+    function loadReadingSettings() {
+      let stored = null;
+      if (currentUserId) {
+        stored = localStorage.getItem(`readingSettings:${currentUserId}`);
+      }
+      // fallback 到旧的全局 key（迁移兼容）
+      if (!stored) {
+        stored = localStorage.getItem('readingSettings');
+      }
+      readingSettings = stored ? JSON.parse(stored) : { ...DEFAULT_READING_SETTINGS };
+      // 确保有默认字段
+      readingSettings.pageMode = readingSettings.pageMode || 'scroll';
+      readingSettings.fontFamily = readingSettings.fontFamily || DEFAULT_READING_SETTINGS.fontFamily;
+      // 迁移旧 theme key（兼容旧存储格式）
+      if (!readingSettings.theme) {
+        const legacyTheme = localStorage.getItem('theme');
+        if (legacyTheme) readingSettings.theme = legacyTheme;
+      }
+    }
+
+    let readingSettings = { ...DEFAULT_READING_SETTINGS };
+    // 未登录时先从全局 key 加载（会在登录后被用户 key 覆盖）
+    loadReadingSettings();
 
     function applyReadingSettings() {
       const reader = document.getElementById('reader');
       if (!reader) return;
-      reader.style.fontFamily = readingSettings.fontFamily;
+      reader.style.fontFamily = readingSettings.fontFamily || '';
+      if (readingSettings.fontSize) reader.style.fontSize = readingSettings.fontSize;
+      if (readingSettings.theme) {
+        document.body.classList.toggle('dark', readingSettings.theme === 'dark');
+      }
 
       if (readingSettings.pageMode === 'scroll') {
         reader.classList.remove('page-mode');
+        // 恢复纵向滚动
+        reader.style.overflowY = '';
+        reader.style.overflowX = '';
+        // 重置横向滚动位置
+        reader.scrollLeft = 0;
       } else {
+        // click 翻页：移动端保持 scroll（覆盖在 initMobile 里）
         reader.classList.add('page-mode');
       }
     }
 
+    // 拦截函数：阻止用户在 page-mode 下手动滚动（wheel / touchmove）
+    function blockPageScroll(e) {
+      e.preventDefault();
+    }
+
     function setupPageMode() {
       const reader = document.getElementById('reader');
+      // 先移除旧监听
+      reader.removeEventListener('click', handleClickPage);
+      reader.removeEventListener('wheel', blockPageScroll);
+      reader.removeEventListener('touchmove', blockPageScroll);
+
       applyReadingSettings();
 
-      reader.removeEventListener('click', handleClickPage);
-
-      if (readingSettings.pageMode === 'click') {
+      if (readingSettings.pageMode === 'click' && !isMobile()) {
         reader.addEventListener('click', handleClickPage);
+        // 禁止触控板/鼠标横向滑动
+        reader.addEventListener('wheel', blockPageScroll, { passive: false });
+        reader.addEventListener('touchmove', blockPageScroll, { passive: false });
       }
     }
 
@@ -931,8 +1053,8 @@
     }
 
     function openReadingSettings() {
-      document.getElementById('pageMode').value = readingSettings.pageMode;
-      document.getElementById('fontFamily').value = readingSettings.fontFamily;
+      document.getElementById('pageMode').value = readingSettings.pageMode || 'scroll';
+      document.getElementById('fontFamily').value = readingSettings.fontFamily || DEFAULT_READING_SETTINGS.fontFamily;
       document.getElementById('readingSettingsDialog').style.display = 'flex';
     }
 
@@ -940,12 +1062,18 @@
       document.getElementById('readingSettingsDialog').style.display = 'none';
     }
 
+    function persistReadingSettings() {
+      const key = currentUserId ? `readingSettings:${currentUserId}` : 'readingSettings';
+      localStorage.setItem(key, JSON.stringify(readingSettings));
+    }
+
     function saveReadingSettings() {
       readingSettings = {
         pageMode: document.getElementById('pageMode').value,
-        fontFamily: document.getElementById('fontFamily').value
+        fontFamily: document.getElementById('fontFamily').value,
+        theme: document.body.classList.contains('dark') ? 'dark' : 'light'
       };
-      localStorage.setItem('readingSettings', JSON.stringify(readingSettings));
+      persistReadingSettings();
       applyReadingSettings();
       closeReadingSettings();
       if (currentChapter) setupPageMode();
@@ -1327,6 +1455,7 @@
         const note = {
           id: noteId,
           type,
+          bookName: currentBook ? currentBook.name : '',
           chapterTitle: currentChapter.title,
           highlightedText: selectedText,
           contextText: paragraphText,
@@ -1366,22 +1495,30 @@
         return;
       }
 
-      // 同段落内：正常插入高亮 span
+      // 同段落内：插入高亮 span（不 deleteContents，避免原文丢失）
+      const noteId = String(Date.now());
       const span = document.createElement('span');
       span.className = 'highlight';
       span.textContent = selectedText;
-      span.dataset.noteId = Date.now();
+      span.dataset.noteId = noteId;
       try {
-        selectedRange.deleteContents();
-        selectedRange.insertNode(span);
+        // 用 surroundContents 直接包裹选区，不删除原文
+        selectedRange.surroundContents(span);
       } catch (e) {
-        // 操作失败时降级为只记录笔记，不插入 DOM
-        console.warn('highlight insert failed', e);
+        // surroundContents 要求选区不跨越部分节点；失败时降级为纯文本替换
+        try {
+          const rangeClone = selectedRange.cloneRange();
+          rangeClone.deleteContents();
+          rangeClone.insertNode(span);
+        } catch (e2) {
+          console.warn('highlight insert failed', e2);
+        }
       }
 
       const note = {
-        id: span.dataset.noteId,
+        id: noteId,
         type,
+        bookName: currentBook ? currentBook.name : '',
         chapterTitle: currentChapter.title,
         highlightedText: selectedText,
         contextText: paragraphText,
@@ -1433,6 +1570,11 @@
         const canInteract = msgs.length > 0 && !isLoading;
         const btnLabel = note.type === 'self' ? '💬 评论' : '💬 继续讨论';
 
+        // 书名 + 章节元信息
+        const bookName = note.bookName || (currentBook ? currentBook.name : '');
+        const chapterTitle = note.chapterTitle || '';
+        const metaHtml = (bookName || chapterTitle) ? `<div style="font-size:11px;color:var(--ink-lighter);margin-bottom:8px;letter-spacing:0.03em;">${bookName ? `《${bookName}》` : ''}${bookName && chapterTitle ? ' / ' : ''}${chapterTitle}</div>` : '';
+
         const bubblesHtml = msgs.map(m => {
           const isUser = m.role === 'user';
           const wrapClass = isUser ? 'msg-user-wrap' : 'msg-ai-wrap';
@@ -1447,6 +1589,7 @@
         return `
         <div class="note-card">
           <button class="delete-btn" onclick="deleteNote(${index})" title="删除">×</button>
+          ${metaHtml}
           <div class="note-highlight" onclick="locateHighlight('${note.id}')" style="cursor:pointer;" title="定位到原文">"${note.highlightedText.slice(0, 80)}${note.highlightedText.length > 80 ? '…' : ''}"</div>
           ${bubblesHtml ? `<div class="note-messages">${bubblesHtml}</div>` : ''}
           ${canInteract ? `<button class="menu-btn" onclick="continueDiscussion(${index})" style="margin-top:8px;padding:6px 12px;font-size:12px;">${btnLabel}</button>` : ''}
@@ -1681,30 +1824,39 @@
 
     function toggleTheme() {
       document.body.classList.toggle('dark');
-      localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+      const theme = document.body.classList.contains('dark') ? 'dark' : 'light';
+      // 把主题存入 readingSettings 并持久化
+      readingSettings.theme = theme;
+      persistReadingSettings();
     }
 
-    if (localStorage.getItem('theme') === 'dark') {
-      document.body.classList.add('dark');
-    }
-
-    applyReadingSettings();
-
-    // 移动端初始化：显示关闭按钮
+    // 移动端初始化：在 initMobile 里覆盖 saveReadingSettings，强制移动端保持 scroll 模式
     (function initMobile() {
       if (!isMobile()) return;
-      document.getElementById('sidebarCloseBtn').style.display = 'none'; // 只在抽屉打开后再显示
-      // 阅读设置保存时，移动端强制 scroll 模式（防止翻页模式破坏正文方向）
+      document.getElementById('sidebarCloseBtn').style.display = 'none';
+      // 移动端保存设置时强制 scroll 模式
       const origSaveRS = saveReadingSettings;
       saveReadingSettings = function() {
+        document.getElementById('pageMode').value = 'scroll';
         origSaveRS();
         const reader = document.getElementById('reader');
-        if (reader) reader.classList.remove('page-mode');
+        if (reader) {
+          reader.classList.remove('page-mode');
+          reader.style.overflowY = '';
+          reader.style.overflowX = '';
+        }
       };
     })();
 
+    // 登录成功后加载用户的阅读设置并应用
+    function onLoginSuccess() {
+      loadApiConfig();
+      loadReadingSettings();
+      applyReadingSettings();
+      loadProgress().then(loadBooks);
+    }
+
     if (authToken) {
-      // 如果 currentUserId 丢失（旧 session），从服务器补取再继续
       if (!currentUserId) {
         fetch(`${API_BASE}/api/user/profile`, {
           headers: { 'Authorization': `Bearer ${authToken}` }
@@ -1712,17 +1864,17 @@
           if (data?.userId) {
             currentUserId = String(data.userId);
             localStorage.setItem('currentUserId', currentUserId);
-            loadApiConfig();
-            loadProgress().then(loadBooks);
+            onLoginSuccess();
           } else {
             logout();
           }
         }).catch(() => logout());
       } else {
-        loadApiConfig();
-        loadProgress().then(loadBooks);
+        onLoginSuccess();
       }
     } else {
+      // 未登录：应用默认（或全局）设置
+      applyReadingSettings();
       document.getElementById('authOverlay').style.display = 'flex';
     }
   </script>
