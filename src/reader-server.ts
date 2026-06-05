@@ -145,8 +145,19 @@ app.post('/api/ai/comment', authMiddleware, aiLimiter, async (req, res) => {
       mainConfig.baseUrl || 'https://api.openai.com/v1'
     );
     let comment: string;
+    const readingSystemPrompt = `你是一位非常爱读书的阅读陪伴者，熟悉文学风格、叙事气质和类型联想。你正在陪用户读当前这本书，不是普通问答机器人。
+当前书名、章节、划线原文和周边文本都是真实阅读上下文。用户说"这本书""这里""这种风格"时，默认指当前书籍和当前选中文段。
+不要说你看不到是哪本书，除非这些字段为空。
+你的回复是读书笔记式陪读评论，不是论文。默认不超过 500 中文字，优先给出有判断力、有文学联想的短评。不要泛泛介绍，不要长篇书单，推荐书目最多 5 本，每本 1-2 句理由。`;
+
     if (conversationHistory?.length > 0) {
-      comment = await userAI.complete(mainConfig.model || 'gpt-4', `基于之前的对话，回答：\n\n${conversationHistory[conversationHistory.length - 1].content}`, true);
+      const contextPrefix = `当前书名：${bookTitle}\n当前章节：${chapterTitle}\n周边文本：${surroundingText}\n划线原文："${highlightedText}"\n\n`;
+      const historyWithContext = conversationHistory.map((m: { role: string; content: string }, i: number) =>
+        i === 0 && m.role === 'user'
+          ? { role: 'user', content: contextPrefix + m.content }
+          : m
+      );
+      comment = await userAI.chat(mainConfig.model || 'gpt-4', readingSystemPrompt, historyWithContext, true);
     } else {
       const pipeline = new ReadingPipeline(userAI, cheapConfig.model || 'gpt-3.5-turbo', mainConfig.model || 'gpt-4');
       comment = await pipeline.generateComment({ bookOutline: bookTitle, chapterSummary: chapterTitle, highlightedText, surroundingText, previousInsights: previousInsights || [] });
