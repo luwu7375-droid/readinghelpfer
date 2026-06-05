@@ -1442,6 +1442,10 @@
         // 没有书签：切到新章节从顶部开始
         reader.scrollTop = 0;
         reader.scrollLeft = 0;
+        if (isMobile()) {
+          // 移动端实际滚动在 window 上，需同步重置
+          window.scrollTo(0, 0);
+        }
       }
 
       // 注册 scroll 自动翻下一章（仅 scroll 模式）
@@ -1457,25 +1461,50 @@
         reader.removeEventListener('scroll', reader._scrollHandler);
         reader._scrollHandler = null;
       }
+      if (reader._winScrollHandler) {
+        window.removeEventListener('scroll', reader._winScrollHandler);
+        window.removeEventListener('touchend', reader._winScrollHandler);
+        reader._winScrollHandler = null;
+      }
       _autoNextLock = false;
 
-      reader._scrollHandler = function() {
-        // 仅 scroll 模式生效
+      // 移动端：.main 不限高，#reader 高度随内容撑开，实际滚动在 window 上
+      // 桌面端：.main { overflow: hidden }，#reader 高度受限，scroll 在 #reader 上
+      function checkAtBottom() {
         if (readingSettings.pageMode !== 'scroll') return;
         if (_autoNextLock) return;
 
         clearTimeout(_autoNextTimer);
         _autoNextTimer = setTimeout(() => {
-          const atBottom = reader.scrollHeight - reader.scrollTop - reader.clientHeight < 40;
+          let atBottom;
+          if (isMobile()) {
+            // 移动端：用 window 滚动位置判断
+            const scrollY = window.scrollY || window.pageYOffset;
+            const docHeight = document.documentElement.scrollHeight;
+            const winHeight = window.innerHeight;
+            atBottom = docHeight - scrollY - winHeight < 60;
+          } else {
+            // 桌面端：用 reader div 内部滚动判断
+            atBottom = reader.scrollHeight - reader.scrollTop - reader.clientHeight < 40;
+          }
           if (!atBottom) return;
           const chapters = window.chapters;
           if (!chapters || chapterIndex >= chapters.length - 1) return;
           _autoNextLock = true;
           loadChapter(chapterIndex + 1, chapters[chapterIndex + 1].title);
         }, 300);
-      };
+      }
 
-      reader.addEventListener('scroll', reader._scrollHandler, { passive: true });
+      if (isMobile()) {
+        // 移动端：监听 window scroll 和 touchend（兜底 iOS 惯性滚动结束）
+        reader._winScrollHandler = checkAtBottom;
+        window.addEventListener('scroll', reader._winScrollHandler, { passive: true });
+        window.addEventListener('touchend', reader._winScrollHandler, { passive: true });
+      } else {
+        // 桌面端：监听 reader div 的 scroll
+        reader._scrollHandler = checkAtBottom;
+        reader.addEventListener('scroll', reader._scrollHandler, { passive: true });
+      }
     }
 
 
