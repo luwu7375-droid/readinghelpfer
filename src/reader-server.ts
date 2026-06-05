@@ -84,7 +84,11 @@ app.get('/api/books/:filename/chapters', authMiddleware, async (req, res) => {
   if (!filename) return res.status(400).json({ error: 'Invalid filename' });
   const bookPath = path.join(process.cwd(), 'data', 'books', String((req as any).userId), filename);
   const chapters = await BookParser.parse(bookPath);
-  res.json(chapters.filter(ch => ch.text.length > 2000));
+  // 只过滤真正空的章节（< 20字），保留序言、短小节、罗马数字章节
+  const filtered = chapters.filter(ch => ch.text.trim().length >= 20);
+  console.log(`[chapters] ${bookPath} → ${chapters.length} parsed, ${filtered.length} after filter`);
+  filtered.forEach((ch, i) => console.log(`  [${i}] "${ch.title}" text.length=${ch.text.length}`));
+  res.json(filtered);
 });
 
 app.delete('/api/books/:filename', authMiddleware, async (req, res) => {

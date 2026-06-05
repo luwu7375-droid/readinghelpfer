@@ -64,25 +64,23 @@ export class EpubParser {
 
       const text = paragraphs.join('\n\n');
 
-      if (text.length > 100) {
-        let title = $page('title').text().trim();
+      // 只跳过完全空的 spine 条目（通常是封面图片页）
+      if (text.trim().length < 20) continue;
 
-        if (!title || title === '未知' || title.length < 2) {
-          const h1 = $page('h1, h2, h3').first().text().trim();
-          if (h1 && h1.length > 0 && h1.length < 50) {
-            title = h1;
-          } else {
-            const firstLine = paragraphs[0]?.substring(0, 30).trim();
-            if (firstLine && firstLine.length > 0) {
-              title = firstLine;
-            } else {
-              title = `Chapter ${chapters.length + 1}`;
-            }
-          }
+      // 优先从 h1/h2/h3 取章节标题；<title> 在文学书中通常是书名，不可靠
+      let title = $page('h1, h2, h3').first().text().trim();
+      if (!title || title.length === 0) {
+        // 无标题元素时退而用 <head><title>，但排除与书名相同的情况
+        const headTitle = $page('title').text().trim();
+        if (headTitle && headTitle.length >= 2 && headTitle.length < 60) {
+          title = headTitle;
+        } else {
+          const firstLine = paragraphs[0]?.substring(0, 40).trim();
+          title = firstLine || `Chapter ${chapters.length + 1}`;
         }
-
-        chapters.push({ title, text });
       }
+
+      chapters.push({ title, text });
     }
 
     return chapters;
