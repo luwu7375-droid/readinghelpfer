@@ -1370,7 +1370,8 @@
       const paragraphs = htmlText.split('\n\n')
         .map((p, i) => `<p data-para="${i}">${p}</p>`)
         .join('');
-      document.getElementById('reader').innerHTML = `<h1>${title}</h1>${paragraphs}`;
+      const reader = document.getElementById('reader');
+      reader.innerHTML = `<h1>${title}</h1>${paragraphs}`;
       document.querySelectorAll('.chapter-item').forEach((el, i) => el.classList.toggle('active', i === index));
       enableTextSelection();
       setupPageMode();
@@ -1389,7 +1390,44 @@
           const para = document.querySelector(`[data-para="${latest.paragraph}"]`);
           if (para) para.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
+      } else {
+        // 没有书签：切到新章节从顶部开始
+        reader.scrollTop = 0;
+        reader.scrollLeft = 0;
       }
+
+      // 注册 scroll 自动翻下一章（仅 scroll 模式）
+      setupAutoNextChapter(reader, index);
+    }
+
+    // 自动翻下一章：scroll 模式下滚到底部时切换
+    let _autoNextTimer = null;
+    let _autoNextLock = false;
+    function setupAutoNextChapter(reader, chapterIndex) {
+      // 先移除旧的监听（每次切章都重建）
+      if (reader._scrollHandler) {
+        reader.removeEventListener('scroll', reader._scrollHandler);
+        reader._scrollHandler = null;
+      }
+      _autoNextLock = false;
+
+      reader._scrollHandler = function() {
+        // 仅 scroll 模式生效
+        if (readingSettings.pageMode !== 'scroll') return;
+        if (_autoNextLock) return;
+
+        clearTimeout(_autoNextTimer);
+        _autoNextTimer = setTimeout(() => {
+          const atBottom = reader.scrollHeight - reader.scrollTop - reader.clientHeight < 40;
+          if (!atBottom) return;
+          const chapters = window.chapters;
+          if (!chapters || chapterIndex >= chapters.length - 1) return;
+          _autoNextLock = true;
+          loadChapter(chapterIndex + 1, chapters[chapterIndex + 1].title);
+        }, 300);
+      };
+
+      reader.addEventListener('scroll', reader._scrollHandler, { passive: true });
     }
 
 
