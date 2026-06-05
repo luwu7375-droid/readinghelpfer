@@ -353,6 +353,37 @@
       font-style: italic;
     }
 
+    .reader-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 80px 20px;
+      color: var(--ink-lighter);
+      font-size: 14px;
+    }
+    .reader-loading-spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--divider);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .reader-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 80px 20px;
+      color: var(--ink-fade);
+      font-size: 14px;
+      text-align: center;
+    }
+
     /* ─── 移动端适配 ─────────────────────────────────── */
 
     /* 顶部书名栏（桌面+移动端共用） */
@@ -1332,9 +1363,26 @@
     }
 
     async function loadChapters(filename, bookName) {
+      const reader = document.getElementById('reader');
+
+      // 立刻清空旧书内容，显示 loading，防止旧书残影
+      reader.innerHTML = '<div class="reader-loading"><div class="reader-loading-spinner"></div><span>正在打开书籍…</span></div>';
+      document.getElementById('chapterList').innerHTML = '';
+
       currentBook = { filename, name: bookName };
-      const res = await authFetch(`${API_BASE}/api/books/${filename}/chapters`);
-      const chapters = await res.json();
+      let chapters;
+      try {
+        const res = await authFetch(`${API_BASE}/api/books/${filename}/chapters`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        chapters = await res.json();
+      } catch (err) {
+        reader.innerHTML = `<div class="reader-error">
+          <span>加载失败：${err.message}</span>
+          <button class="save-btn" onclick="loadChapters('${filename}','${bookName.replace(/'/g,"\\'")}')">重试</button>
+        </div>`;
+        return;
+      }
+
       document.getElementById('chapterList').innerHTML = chapters.map((ch, i) =>
         `<div class="chapter-item" onclick="loadChapter(${i}, '${ch.title}')">${ch.title}</div>`
       ).join('');
