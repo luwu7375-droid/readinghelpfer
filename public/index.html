@@ -84,14 +84,7 @@
     }
 
     @media (max-width: 768px) {
-      .reader.page-mode {
-        column-count: 1;
-        column-gap: 40px;
-        margin: 0 auto;
-        width: calc(100% - 40px);
-        padding: 16px 0;
-        height: calc(100vh - 90px);
-      }
+      /* 移动端 page-mode 完整覆盖在下方移动端媒体查询 !important 块里 */
     }
 
     .reader.page-mode h1 {
@@ -531,9 +524,12 @@
         min-height: calc(100dvh - 48px);
       }
 
-      /* 移动端 page-mode：单列横向分页 */
+      /* 移动端 page-mode：单列横向分页
+         column-width = viewport - 左右padding(各16px) = 100vw - 32px
+         step = column-width + gap = (100vw-32px) + 32px = 100vw = window.innerWidth
+         所以 JS getPageStep 在移动端直接返回 window.innerWidth */
       .reader.page-mode {
-        column-count: unset !important;
+        column-count: auto !important;
         column-width: calc(100vw - 32px) !important;
         column-gap: 32px !important;
         overflow-x: scroll !important;
@@ -541,6 +537,7 @@
         height: calc(100dvh - 48px) !important;
         width: 100% !important;
         padding: 24px 16px 80px !important;
+        box-sizing: border-box !important;
         -ms-overflow-style: none !important;
         scrollbar-width: none !important;
       }
@@ -1042,12 +1039,13 @@
 
     function getPageStep(reader) {
       const style = getComputedStyle(reader);
-      const gap = parseFloat(style.columnGap) || 80;
       if (isMobile()) {
-        // 手机单列：一屏一页，步进 = 列宽 + gap
-        return reader.clientWidth + gap;
+        // 手机单列：column-width = 100vw-32px，gap = 32px
+        // step = column-width + gap = (innerWidth-32) + 32 = innerWidth
+        return window.innerWidth;
       }
-      // 桌面双列：步进 = (列宽 + gap) * 2
+      // 桌面双列：step = (列宽 + gap) * 2
+      const gap = parseFloat(style.columnGap) || 80;
       const colWidth = (reader.clientWidth - gap) / 2;
       return (colWidth + gap) * 2;
     }
