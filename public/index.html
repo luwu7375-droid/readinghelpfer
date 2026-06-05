@@ -1088,6 +1088,8 @@
       if (e.target.closest('#readingSettingsDialog')) return;
       if (e.target.closest('#notesPanel')) return;
       if (e.target.closest('.sidebar')) return;
+      if (e.target.closest('#exportDialog')) return;
+      if (e.target.closest('#authOverlay')) return;
       // 有文本选区时不翻页
       if (window.getSelection().toString().trim().length > 0) return;
       // 最近 500ms 内发生过选区操作，不翻页
@@ -1538,11 +1540,18 @@
     let textSelectionInitialized = false;
     let lastSelectionAt = 0;  // 最近一次有效选区时间戳，防止选词后误触翻页
 
+    function isInteractiveUiTarget(target) {
+      return target && target.closest(
+        '#settingsDialog, #inputDialog, #exportDialog, #readingSettingsDialog, #authOverlay, input, textarea, select, button, [contenteditable="true"]'
+      );
+    }
+
     function enableTextSelection() {
       if (textSelectionInitialized) return;
       textSelectionInitialized = true;
 
       function tryShowHighlightMenu(targetEl) {
+        if (isInteractiveUiTarget(targetEl)) return;
         const selection = window.getSelection();
         const text = selection.toString().trim();
         if (text.length > 5) {
@@ -1589,7 +1598,7 @@
         const menu = document.getElementById('highlightMenu');
         if (menu._justOpened) { menu._justOpened = false; return; }
         // 点击菜单按钮或输入框时不关闭、不清除选区
-        if (e.target.closest('#highlightMenu') || e.target.closest('#inputDialog')) return;
+        if (e.target.closest('#highlightMenu') || isInteractiveUiTarget(e.target)) return;
         menu.classList.remove('mobile-visible');
         menu.style.display = 'none';
         window.getSelection().removeAllRanges();
